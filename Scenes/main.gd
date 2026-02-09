@@ -15,15 +15,21 @@ func _process(delta: float) -> void:
 	if player:
 		score_label.text = "Score: " + str(score) + "  |  Vie: " + str(player.health)
 
+func _input(event: InputEvent) -> void:
+	if is_game_over and event is InputEventKey and event.pressed:
+		get_tree().reload_current_scene()
 
 func add_score(amount: int) -> void:
 	score += amount
 	
 func game_over() -> void:
 	is_game_over = true
-	score_label.text = "GAME OVER ! Score: " + str(score)
+	score_label.text = "GAME OVER ! Score: " + str(score) + "\nAppuyer sur une touche pour rejouer"
 	$Timer.stop()
-
+# Clear all remaining enemies
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		enemy.queue_free()
+		
 func _on_timer_timeout() -> void:
 	var enemy = enemy_scene.instantiate()	
 	# Random spawn at screen edges

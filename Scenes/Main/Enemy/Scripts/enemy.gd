@@ -5,7 +5,8 @@ var player : CharacterBody2D
 var health := 3
 
 func _ready() -> void:
-	$Sprite2D.modulate = Color.RED
+	add_to_group("enemy")
+	#$Sprite2D.modulate = Color.RED
 
 func _physics_process(delta: float) -> void:
 	if not player:
@@ -31,3 +32,7 @@ func take_damage(amount: int) -> void:
 		if main.has_method("add_score"):
 			main.add_score(10)
 		queue_free()  # Death
+	else:
+		$Sprite2D.modulate = Color.RED
+		await get_tree().create_timer(0.1).timeout
+		$Sprite2D.modulate = Color.WHITE
