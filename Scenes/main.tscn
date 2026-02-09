@@ -1,9 +1,11 @@
 [gd_scene format=3 uid="uid://dm0ro2t6r70vl"]
 
+[ext_resource type="Script" uid="uid://bsjt3sthyd0bl" path="res://Scenes/main.gd" id="1_8gbba"]
 [ext_resource type="PackedScene" uid="uid://8pxg28cxeq0i" path="res://Scenes/Main/Player/player.tscn" id="1_bo1nx"]
 [ext_resource type="PackedScene" uid="uid://b6qwd65xagpie" path="res://Scenes/Main/Enemy/enemy.tscn" id="2_8gbba"]
 
 [node name="Main" type="Node2D" unique_id=1537711246]
+script = ExtResource("1_8gbba")
 
 [node name="Player" parent="." unique_id=874183628 instance=ExtResource("1_bo1nx")]
 position = Vector2(87, 129)
@@ -19,3 +21,16 @@ scale = Vector2(0.15, 0.15)
 [node name="Enemy3" parent="." unique_id=1897618453 instance=ExtResource("2_8gbba")]
 position = Vector2(382, 65)
 scale = Vector2(0.15, 0.15)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=444617480]
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer" unique_id=1312968792]
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+
+[node name="Label" type="Label" parent="CanvasLayer/MarginContainer" unique_id=22096373]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Score : 0"

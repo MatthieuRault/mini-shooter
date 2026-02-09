@@ -20,4 +20,7 @@ func _physics_process(delta: float) -> void:
 func take_damage(amount: int) -> void:
 	health -= amount
 	if health <= 0:
+		var main = get_tree().current_scene
+		if main.has_method("add_score"):
+			main.add_score(10)
 		queue_free()  # Meurt
