@@ -1,10 +1,11 @@
 extends CharacterBody2D
-
 @export var bullet_scene : PackedScene
-var can_shoot := true
 
+var can_shoot := true
 var speed : float = 200.0
 var direction := Vector2.ZERO
+var health := 5
+var invincible := false
 @onready var sprite = $Soldier
 
 func _ready() -> void:
@@ -33,15 +34,36 @@ func _unhandled_input(event: InputEvent) -> void:
 func shoot() -> void:
 	if bullet_scene:
 		var bullet = bullet_scene.instantiate()
-		get_parent().add_child(bullet)
-		
+		get_parent().add_child(bullet)		
 		bullet.global_position = sprite.global_position + Vector2.RIGHT.rotated(sprite.rotation) * 20
 		bullet.rotation = sprite.rotation		
-		
 		sprite.play("shoot")
 		await get_tree().create_timer(0.1).timeout
-		sprite.play("idle")
-		
+		sprite.play("idle")		
 		can_shoot = false
 		await get_tree().create_timer(0.15).timeout
 		can_shoot = true
+		
+func take_damage(amount: int) -> void:
+	if invincible:
+		return
+	health -= amount
+	
+	# Damage feedback = red flash
+	sprite.modulate = Color.RED
+	invincible = true
+	await get_tree().create_timer(0.5).timeout
+	sprite.modulate = Color.WHITE
+	invincible = false
+	
+	if health <= 0:
+		health = 0
+		die()
+
+func die() -> void:
+	var main = get_tree().current_scene
+	if main.has_method("game_over"):
+		main.game_over()
+	visible = false
+	set_physics_process(false)
+	set_process_input(false)

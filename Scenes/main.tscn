@@ -30,7 +30,7 @@ theme_override_constants/margin_top = 20
 [node name="Label" type="Label" parent="CanvasLayer/MarginContainer" unique_id=22096373]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Score : 0"
+text = "Score: 0"
 
 [node name="Timer" type="Timer" parent="." unique_id=1973733727]
 wait_time = 2.0

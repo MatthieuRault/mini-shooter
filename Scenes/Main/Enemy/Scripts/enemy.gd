@@ -10,11 +10,18 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not player:
 		player = get_tree().get_first_node_in_group("player")
+	
+	if not is_instance_valid(player):
+		return
 		
-	if player:
-		var direction = (player.global_position - global_position).normalized()
-		velocity = direction * speed
-		move_and_slide()
+	var direction = (player.global_position - global_position).normalized()
+	velocity = direction * speed
+	move_and_slide()
+		
+	# Contact damage
+	if global_position.distance_to(player.global_position) < 30:
+		if player.has_method("take_damage"):
+			player.take_damage(1)
 
 
 func take_damage(amount: int) -> void:
@@ -23,4 +30,4 @@ func take_damage(amount: int) -> void:
 		var main = get_tree().current_scene
 		if main.has_method("add_score"):
 			main.add_score(10)
-		queue_free()  # Meurt
+		queue_free()  # Death
