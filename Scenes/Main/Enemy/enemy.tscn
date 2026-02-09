@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b6qwd65xagpie"]
 
 [ext_resource type="Script" uid="uid://dl6q4nog3s6sd" path="res://Scenes/Main/Enemy/Scripts/enemy.gd" id="1_nvvbs"]
-[ext_resource type="Texture2D" uid="uid://desxhyxqn7qoj" path="res://Scenes/Main/Enemy/Sprites/Character_Idle.png" id="2_v7t65"]
+[ext_resource type="Texture2D" uid="uid://dan3v0q4658l1" path="res://Scenes/Main/Enemy/Sprites/enemy_normal.png" id="2_v7t65"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_dmwl5"]
 

@@ -31,7 +31,15 @@ func game_over() -> void:
 		enemy.queue_free()
 		
 func _on_timer_timeout() -> void:
-	var enemy = enemy_scene.instantiate()	
+	var enemy = enemy_scene.instantiate()
+	# Random mobs
+	var rand = randf()
+	if rand < 0.6:
+		enemy.setup("normal")
+	elif rand < 0.85:
+		enemy.setup("fast")
+	else:
+		enemy.setup("tank")
 	# Random spawn at screen edges
 	var side = randi() % 4
 	var viewport_size = get_viewport_rect().size

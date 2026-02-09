@@ -3,15 +3,41 @@ extends CharacterBody2D
 var speed := 100.0
 var player : CharacterBody2D
 var health := 3
+var enemy_type := "normal"
+var score_value := 10
+
+var tex_normal = preload("res://Scenes/Main/Enemy/Sprites/enemy_normal.png")
+var tex_fast = preload("res://Scenes/Main/Enemy/Sprites/enemy_fast.png")
+var tex_tank = preload("res://Scenes/Main/Enemy/Sprites/enemy_tank.png")
 
 func _ready() -> void:
 	add_to_group("enemy")
-	#$Sprite2D.modulate = Color.RED
-
-func _physics_process(delta: float) -> void:
 	if not player:
 		player = get_tree().get_first_node_in_group("player")
+		
+func setup(type: String) -> void:
+	enemy_type = type
+	match type:
+		"normal":
+			speed = 100.0
+			health = 3
+			score_value = 10
+			$Sprite2D.texture = tex_normal
+		"fast":
+			speed = 200.0
+			health = 1
+			score_value = 15
+			$Sprite2D.texture = tex_fast
+		"tank":
+			speed = 50.0
+			health = 8
+			score_value = 30
+			$Sprite2D.texture = tex_tank
 	
+	$Sprite2D.hframes = 4
+	$Sprite2D.vframes = 4
+
+func _physics_process(delta: float) -> void:	
 	if not is_instance_valid(player):
 		return
 		
@@ -33,6 +59,7 @@ func take_damage(amount: int) -> void:
 			main.add_score(10)
 		queue_free()  # Death
 	else:
+		var original_color = $Sprite2D.modulate
 		$Sprite2D.modulate = Color.RED
 		await get_tree().create_timer(0.1).timeout
-		$Sprite2D.modulate = Color.WHITE
+		$Sprite2D.modulate = original_color
