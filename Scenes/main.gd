@@ -7,7 +7,32 @@ var enemy_scene = preload("res://Scenes/Main/Enemy/enemy.tscn")
 
 func _ready() -> void:
 	$Timer.timeout.connect(_on_timer_timeout)
+	create_obstacles()
 
+# Spawn obstacles - predefined positions
+func create_obstacles() -> void:
+	var crate_texture = preload("res://Scenes/Main/Sprites/crate.png")
+	var obstacle_positions = [
+		Vector2(300, 200), Vector2(500, 400), Vector2(700, 150),
+		Vector2(200, 350), Vector2(600, 300), Vector2(400, 100)
+	]
+	
+	for pos in obstacle_positions:
+		var body = StaticBody2D.new()
+		var sprite = Sprite2D.new()
+		var col = CollisionShape2D.new()
+		var shape = RectangleShape2D.new()
+		
+		sprite.texture = crate_texture
+		shape.size = Vector2(32, 32)
+		col.shape = shape
+		
+		body.add_child(sprite)
+		body.add_child(col)
+		body.position = pos
+		add_child(body)
+
+# Update UI score and hp
 func _process(delta: float) -> void:
 	if is_game_over:
 		return
@@ -15,6 +40,7 @@ func _process(delta: float) -> void:
 	if player:
 		score_label.text = "Score: " + str(score) + "  |  Vie: " + str(player.health)
 
+# Restart game
 func _input(event: InputEvent) -> void:
 	if is_game_over and event is InputEventKey and event.pressed:
 		get_tree().reload_current_scene()

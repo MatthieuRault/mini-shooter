@@ -6,7 +6,6 @@ var tex_fire_rate = preload("res://Scenes/PowerUp/Sprites/powerup_fire_rate.png"
 var tex_damage = preload("res://Scenes/PowerUp/Sprites/powerup_damage.png")
 
 func setup(power_type: String) -> void:
-	#print("test du buff ici:", type)
 	type = power_type
 	
 	# Type power-up
@@ -21,7 +20,6 @@ func setup(power_type: String) -> void:
 	$Sprite2D.scale = Vector2(0.35, 0.35)
 	
 func _ready() -> void:
-	#body_entered.connect(_on_body_entered)	
 	
 	# Despawn after 5 seconds if not picked up
 	await get_tree().create_timer(5.0).timeout
@@ -34,8 +32,3 @@ func _physics_process(delta: float) -> void:
 		if player.has_method("apply_powerup"):
 			player.apply_powerup(type)
 		queue_free()
-
-#func _on_body_entered(body: Node2D) -> void:
-	#if body.is_in_group("player") and body.has_method("apply_powerup"):
-		#body.apply_powerup(type)
-		#queue_free()

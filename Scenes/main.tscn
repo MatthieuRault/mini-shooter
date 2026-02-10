@@ -3,9 +3,19 @@
 [ext_resource type="Script" uid="uid://bsjt3sthyd0bl" path="res://Scenes/main.gd" id="1_8gbba"]
 [ext_resource type="PackedScene" uid="uid://8pxg28cxeq0i" path="res://Scenes/Main/Player/player.tscn" id="1_bo1nx"]
 [ext_resource type="PackedScene" uid="uid://b6qwd65xagpie" path="res://Scenes/Main/Enemy/enemy.tscn" id="2_8gbba"]
+[ext_resource type="Texture2D" uid="uid://8hndptaaejee" path="res://Scenes/Main/Sprites/floor_concrete.png" id="2_jjvhh"]
 
 [node name="Main" type="Node2D" unique_id=1537711246]
 script = ExtResource("1_8gbba")
+
+[node name="Floor" type="TextureRect" parent="." unique_id=90017577]
+offset_left = -500.0
+offset_top = -500.0
+offset_right = 1500.0
+offset_bottom = 1500.0
+mouse_filter = 2
+texture = ExtResource("2_jjvhh")
+stretch_mode = 1
 
 [node name="Player" parent="." unique_id=874183628 instance=ExtResource("1_bo1nx")]
 position = Vector2(87, 129)
