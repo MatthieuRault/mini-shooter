@@ -1,6 +1,7 @@
 extends Node2D
 
 var score := 0
+var time_alive := 0.0
 var is_game_over := false
 var enemy_scene = preload("res://Scenes/Main/Enemy/enemy.tscn")
 @onready var score_label = $CanvasLayer/MarginContainer/Label
@@ -41,6 +42,11 @@ func create_obstacles() -> void:
 func _process(delta: float) -> void:
 	if is_game_over:
 		return
+		
+	# Increase difficulty over time
+	time_alive += delta	
+	$Timer.wait_time = max(0.5, 2.0 - time_alive * 0.02)
+	
 	var player = get_tree().get_first_node_in_group("player")
 	if player:
 		score_label.text = "Score: " + str(score) + "  |  Vie: " + str(player.health)
@@ -68,14 +74,17 @@ func game_over() -> void:
 		
 func _on_timer_timeout() -> void:
 	var enemy = enemy_scene.instantiate()
-	# Random mobs
+	# More dangerous enemies over time
 	var rand = randf()
-	if rand < 0.6:
-		enemy.setup("normal")
-	elif rand < 0.85:
+	var tank_chance = min(0.15 + time_alive * 0.005, 0.4)
+	var fast_chance = min(0.25 + time_alive * 0.003, 0.35)
+	
+	if rand < tank_chance:
+		enemy.setup("tank")
+	elif rand < tank_chance + fast_chance:
 		enemy.setup("fast")
 	else:
-		enemy.setup("tank")
+		enemy.setup("normal")
 	# Random spawn at screen edges
 	var side = randi() % 4
 	var viewport_size = get_viewport_rect().size
