@@ -2,8 +2,15 @@ extends CharacterBody2D
 
 # Movement
 @export var bullet_scene : PackedScene
-var speed : float = 200.0
+var speed : float = 220.0
 var direction := Vector2.ZERO
+
+# Dash
+var dash_speed := 600.0
+var dash_duration := 0.15
+var dash_cooldown := 0.8
+var can_dash := true
+var is_dashing := false
 
 # Combat
 var can_shoot := true
@@ -26,6 +33,11 @@ func _ready() -> void:
 	sprite.scale = Vector2(1, 1)
 
 func _physics_process(delta: float) -> void:
+	# Dash
+	if is_dashing:
+		move_and_slide()
+		return
+	
 	# Move the player
 	velocity = direction * speed
 	move_and_slide()
@@ -42,6 +54,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed and can_shoot:
 			shoot()
+			
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_SPACE and can_dash and direction != Vector2.ZERO:
+			dash()
 
 # Shoot a bullet toward the mouse direction
 func shoot() -> void:
@@ -65,6 +81,26 @@ func shoot() -> void:
 	can_shoot = false
 	await get_tree().create_timer(shoot_cooldown).timeout
 	can_shoot = true
+	
+func dash() -> void:
+	is_dashing = true
+	can_dash = false
+	invincible = true
+	
+	velocity = direction.normalized() * dash_speed
+	
+	# Player semi-transparent while dashing
+	sprite.modulate = Color(1, 1, 1, 0.4)
+	
+	await get_tree().create_timer(dash_duration).timeout
+	
+	is_dashing = false
+	sprite.modulate = Color.WHITE
+	invincible = false
+	
+	# Cooldown timer ea dash
+	await get_tree().create_timer(dash_cooldown).timeout
+	can_dash = true
 
 # Take damage from enemies, with knockback and invincibility frames
 func take_damage(amount: int) -> void:
