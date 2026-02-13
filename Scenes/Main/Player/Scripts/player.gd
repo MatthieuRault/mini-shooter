@@ -14,8 +14,16 @@ var is_dashing := false
 
 # Combat
 var can_shoot := true
-var bullet_damage := 1
-var shoot_cooldown := 0.15
+var current_weapon := "pistol"  # pistol, shotgun, sniper
+var weapons := ["pistol", "shotgun", "sniper"]
+var weapon_index := 0
+
+# Weapon stats (damage, cooldown, speed, count, spread, piercing)
+var weapon_data := {
+	"pistol":  {"damage": 1, "cooldown": 0.15, "speed": 500.0, "count": 1, "spread": 0.0, "piercing": false},
+	"shotgun": {"damage": 1, "cooldown": 0.5,  "speed": 400.0, "count": 5, "spread": 0.4, "piercing": false},
+	"sniper":  {"damage": 5, "cooldown": 1.0,  "speed": 800.0, "count": 1, "spread": 0.0, "piercing": true},
+}
 
 # Health
 var health := 5
@@ -49,6 +57,22 @@ func _physics_process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	direction = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	
+	# Switch weapon mouse wheel
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			switch_weapon(-1)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			switch_weapon(1)
+	
+	# Switch weapon
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_1:
+			set_weapon(0)
+		elif event.keycode == KEY_2:
+			set_weapon(1)
+		elif event.keycode == KEY_3:
+			set_weapon(2)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -59,16 +83,49 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_SPACE and can_dash and direction != Vector2.ZERO:
 			dash()
 
+func switch_weapon(dir: int) -> void:
+	weapon_index = wrapi(weapon_index + dir, 0, weapons.size())
+	current_weapon = weapons[weapon_index]
+	_notify_weapon_change()
+
+func set_weapon(index: int) -> void:
+	if index >= 0 and index < weapons.size():
+		weapon_index = index
+		current_weapon = weapons[weapon_index]
+		_notify_weapon_change()
+
+func _notify_weapon_change() -> void:
+	var main = get_tree().current_scene
+	if main.has_method("on_weapon_changed"):
+		main.on_weapon_changed(current_weapon)
+
 # Shoot a bullet toward the mouse direction
 func shoot() -> void:
 	if not bullet_scene:
 		return
+		
+	var data = weapon_data[current_weapon]
+	var base_angle = sprite.rotation
 	
-	var bullet = bullet_scene.instantiate()
-	bullet.damage = bullet_damage
-	get_parent().add_child(bullet)
-	bullet.global_position = sprite.global_position + Vector2.RIGHT.rotated(sprite.rotation) * 20
-	bullet.rotation = sprite.rotation
+	for i in data["count"]:
+		var bullet = bullet_scene.instantiate()
+		bullet.damage = data["damage"]
+		bullet.speed = data["speed"]
+		
+		# Enable piercing bullet
+		if bullet.has_method("set_piercing"):
+			bullet.set_piercing(data["piercing"])
+		
+		# Spread angle shotgun shots
+		var angle_offset := 0.0
+		if data["count"] > 1:
+			angle_offset = lerp(-data["spread"] / 2.0, data["spread"] / 2.0, float(i) / (data["count"] - 1))
+		
+		var final_angle = base_angle + angle_offset
+		
+		get_parent().add_child(bullet)
+		bullet.global_position = sprite.global_position + Vector2.RIGHT.rotated(final_angle) * 20
+		bullet.rotation = final_angle
 	
 	# Shoot animation and sound
 	sprite.play("shoot")
@@ -79,7 +136,7 @@ func shoot() -> void:
 	
 	# Shoot cooldown
 	can_shoot = false
-	await get_tree().create_timer(shoot_cooldown).timeout
+	await get_tree().create_timer(data["cooldown"]).timeout
 	can_shoot = true
 	
 func dash() -> void:
@@ -148,13 +205,21 @@ func apply_powerup(type: String) -> void:
 		"heal":
 			health = min(health + 2, 5)
 		"fire_rate":
-			shoot_cooldown = 0.05
+			var original_cooldowns := {}
+			for w in weapon_data:
+				original_cooldowns[w] = weapon_data[w]["cooldown"]
+				weapon_data[w]["cooldown"] *= 0.4
 			await get_tree().create_timer(5.0).timeout
-			shoot_cooldown = 0.15
+			for w in weapon_data:
+				weapon_data[w]["cooldown"] = original_cooldowns[w]
 		"damage":
-			bullet_damage = 3
+			var original_damages := {}
+			for w in weapon_data:
+				original_damages[w] = weapon_data[w]["damage"]
+				weapon_data[w]["damage"] *= 3
 			await get_tree().create_timer(5.0).timeout
-			bullet_damage = 1
+			for w in weapon_data:
+				weapon_data[w]["damage"] = original_damages[w]
 
 # Helper to play a one-shot sound effect
 func _play_sound(sound: AudioStream, volume: float = -10) -> void:
