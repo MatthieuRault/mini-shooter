@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="MiniShooter"
-run/main_scene="uid://dm0ro2t6r70vl"
+run/main_scene="uid://dcu82pwmf5hay"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 

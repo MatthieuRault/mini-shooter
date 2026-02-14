@@ -288,12 +288,12 @@ func add_score(amount: int) -> void:
 
 func _input(event: InputEvent) -> void:
 	if is_game_over and event is InputEventKey and event.pressed:
-		get_tree().reload_current_scene()
+		get_tree().change_scene_to_file("res://Scenes/Title/title.tscn")
 
 func game_over() -> void:
 	is_game_over = true
 	score_label.visible = true
-	score_label.text = "GAME OVER!\n\nScore: %s  |  Vague: %s\n\nAppuyer sur une touche pour relancer" % [score, current_wave]
+	score_label.text = "GAME OVER!\n\nScore: %s  |  Vague: %s\n\nAppuyer sur une touche" % [score, current_wave]
 	$Timer.stop()
 	
 	var audio = AudioStreamPlayer.new()
