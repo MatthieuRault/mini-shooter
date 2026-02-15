@@ -105,9 +105,9 @@ func _physics_process(_delta) -> void:
 	velocity = direction * speed
 	move_and_slide()
 	
-	# Rotate sprite toward mouse
+	# Flip
 	var mouse_pos = get_global_mouse_position()
-	sprite.rotation = global_position.angle_to_point(mouse_pos)
+	sprite.flip_h = mouse_pos.x < global_position.x
 
 	# Auto-fire weapons (assault, minigun)
 	if can_shoot and weapon_data[current_weapon]["auto"] and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -182,7 +182,8 @@ func _shoot() -> void:
 		return
 	
 	var data = weapon_data[current_weapon]
-	var base_angle = sprite.rotation
+	var mouse_pos = get_global_mouse_position()
+	var base_angle = (mouse_pos - global_position).angle()
 	
 	# Spawn bullets (multiple for shotgun)
 	for i in data["count"]:
@@ -210,7 +211,7 @@ func _shoot() -> void:
 		
 		var final_angle = base_angle + angle_offset
 		get_parent().add_child(bullet)
-		bullet.global_position = sprite.global_position + Vector2.RIGHT.rotated(final_angle) * 20
+		bullet.global_position = global_position + Vector2.RIGHT.rotated(final_angle) * 20
 		bullet.rotation = final_angle
 	
 	# Animation and sound
