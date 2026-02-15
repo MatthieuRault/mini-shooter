@@ -118,30 +118,103 @@ func _ready() -> void:
 
 # ==================== MAP SETUP ====================
 
+var obstacle_types := [
+	{"texture": "res://Scenes/Main/Sprites/crate.png",   "size": Vector2(32, 32)},
+	{"texture": "res://Scenes/Main/Sprites/barrel.png",  "size": Vector2(28, 28)},
+	{"texture": "res://Scenes/Main/Sprites/sandbag.png", "size": Vector2(36, 24)},
+]
+
 func _create_obstacles() -> void:
-	var crate_texture = preload("res://Scenes/Main/Sprites/crate.png")
-	var positions = [
-		Vector2(200, 150), Vector2(400, 300), Vector2(700, 150),
-		Vector2(150, 400), Vector2(500, 200), Vector2(300, 100),
-		Vector2(750, 400), Vector2(600, 450), Vector2(850, 250),
-	]
+	var player_spawn = Vector2(87, 129)
+	var margin = 50.0
+	var min_spacing = 45.0
+	var placed : Array[Vector2] = []
 	
-	for pos in positions:
-		var body = StaticBody2D.new()
-		var sprite = Sprite2D.new()
-		var col = CollisionShape2D.new()
-		var shape = RectangleShape2D.new()
+	# Random count: 8-14 obstacles per run
+	var count = randi_range(8, 14)
+	
+	for i in count:
+		var pos := Vector2.ZERO
+		var valid := false
+		var attempts := 0
 		
-		sprite.texture = crate_texture
-		shape.size = Vector2(32, 32)
-		col.shape = shape
-		body.collision_layer = 16
-		body.collision_mask = 0
+		# Try to find a valid position
+		while not valid and attempts < 30:
+			attempts += 1
+			pos = Vector2(
+				randf_range(margin, map_size.x - margin),
+				randf_range(margin, map_size.y - margin)
+			)
+			
+			# Not too close to player spawn
+			if pos.distance_to(player_spawn) < 80.0:
+				continue
+			
+			# Not overlapping other obstacles
+			var overlap := false
+			for p in placed:
+				if pos.distance_to(p) < min_spacing:
+					overlap = true
+					break
+			if overlap:
+				continue
+			
+			valid = true
 		
-		body.add_child(sprite)
-		body.add_child(col)
-		body.position = pos
-		add_child(body)
+		if not valid:
+			continue
+		
+		placed.append(pos)
+		
+		# Pick a random obstacle type
+		var type = obstacle_types[randi() % obstacle_types.size()]
+		_spawn_obstacle(pos, type)
+	
+	# Add 1-3 small clusters (2-3 obstacles grouped tightly)
+	var cluster_count = randi_range(1, 3)
+	for c in cluster_count:
+		var center := Vector2(
+			randf_range(150, map_size.x - 150),
+			randf_range(100, map_size.y - 100)
+		)
+		
+		if center.distance_to(player_spawn) < 100.0:
+			continue
+		
+		var cluster_size = randi_range(2, 3)
+		for j in cluster_size:
+			var offset = Vector2(randf_range(-30, 30), randf_range(-20, 20))
+			var cpos = center + offset
+			
+			# Check spacing with existing obstacles
+			var too_close := false
+			for p in placed:
+				if cpos.distance_to(p) < 30.0:
+					too_close = true
+					break
+			if too_close:
+				continue
+			
+			placed.append(cpos)
+			var type = obstacle_types[0]  # Clusters use crates
+			_spawn_obstacle(cpos, type)
+
+func _spawn_obstacle(pos: Vector2, type: Dictionary) -> void:
+	var body = StaticBody2D.new()
+	var sprite = Sprite2D.new()
+	var col = CollisionShape2D.new()
+	var shape = RectangleShape2D.new()
+	
+	sprite.texture = load(type["texture"])
+	shape.size = type["size"]
+	col.shape = shape
+	body.collision_layer = 16
+	body.collision_mask = 0
+	
+	body.add_child(sprite)
+	body.add_child(col)
+	body.position = pos
+	add_child(body)
 
 func _create_walls() -> void:
 	var thickness = 16.0
