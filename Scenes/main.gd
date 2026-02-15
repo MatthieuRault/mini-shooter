@@ -35,6 +35,7 @@ var ammo_label : Label
 var grenade_icon : TextureRect
 var dash_icon : TextureRect
 var mine_icon : TextureRect
+var fire_mode_label : Label
 
 # ==================== BOSS HP BAR ====================
 
@@ -386,6 +387,19 @@ func _create_weapon_hud() -> void:
 	mine_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	hbox.add_child(mine_icon)
 	
+		# Fire mode indicator
+	var sep2 = Label.new()
+	sep2.text = "|"
+	sep2.add_theme_font_size_override("font_size", 10)
+	sep2.modulate = Color(1, 1, 1, 0.2)
+	hbox.add_child(sep2)
+	
+	fire_mode_label = Label.new()
+	fire_mode_label.text = ""
+	fire_mode_label.add_theme_font_size_override("font_size", 9)
+	fire_mode_label.modulate = Color(0.6, 0.8, 1.0)
+	hbox.add_child(fire_mode_label)
+	
 	$CanvasLayer.add_child(panel)
 	
 # ==================== HUD UPDATE ====================
@@ -434,10 +448,24 @@ func _update_hud() -> void:
 			else:
 				ammo_label.modulate = Color(0.9, 0.9, 0.7)
 	
-	# Grenade, dash, mine cooldowns
+	# Cooldowns icons
 	grenade_icon.modulate = Color.WHITE if player.can_grenade else Color(1, 1, 1, 0.3)
 	dash_icon.modulate = Color.WHITE if player.can_dash else Color(1, 1, 1, 0.3)
 	mine_icon.modulate = Color.WHITE if player.can_mine else Color(1, 1, 1, 0.3)
+	
+	# Fire mode display (only for assault/minigun)
+	if current_weapon_name in ["assault", "minigun"]:
+		var mode_names := {"auto": "AUTO", "burst": "RAFALE", "semi": "SEMI"}
+		var mode_colors := {
+			"auto": Color(0.6, 0.8, 1.0),
+			"burst": Color(1.0, 0.8, 0.3),
+			"semi": Color(0.5, 1.0, 0.5),
+		}
+		fire_mode_label.text = "[B] %s" % mode_names.get(player.current_fire_mode, "AUTO")
+		fire_mode_label.modulate = mode_colors.get(player.current_fire_mode, Color.WHITE)
+		fire_mode_label.visible = true
+	else:
+		fire_mode_label.visible = false
 	
 	# Wave display
 	if between_waves:
@@ -455,6 +483,9 @@ func _update_hud() -> void:
 
 func on_weapon_changed(weapon: String) -> void:
 	current_weapon_name = weapon
+	
+func on_fire_mode_changed(mode: String) -> void:
+	pass
 
 # ==================== BOSS HP BAR ====================
 

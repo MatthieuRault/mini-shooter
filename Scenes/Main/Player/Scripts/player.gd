@@ -53,6 +53,15 @@ var base_weapon_data := {}
 var damage_buff_active := false
 var fire_rate_buff_active := false
 
+# ==================== FIRE MODES ====================
+
+var fire_mode_weapons := ["assault", "minigun"]
+var fire_modes := ["auto", "burst", "semi"]
+var current_fire_mode := "auto"
+var burst_count := 3
+var burst_remaining := 0
+var is_bursting := false
+
 # ==================== GRENADE ====================
 
 var grenade_scene : PackedScene
@@ -134,7 +143,12 @@ func _physics_process(_delta) -> void:
 
 	# Auto-fire weapons (assault, minigun)
 	if can_shoot and weapon_data[current_weapon]["auto"] and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		_shoot()
+		if _get_effective_fire_mode() == "auto":
+			_shoot()
+	
+	# Burst mode
+	if is_bursting and burst_remaining > 0 and can_shoot:
+		_shoot_burst_tick()
 
 # ==================== INPUT ====================
 
@@ -164,15 +178,19 @@ func _input(event: InputEvent) -> void:
 			_set_weapon(5)
 		elif event.keycode == KEY_R:
 			_reload()
+		elif event.keycode == KEY_B:
+			_cycle_fire_mode()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
-		# Non-auto weapons fire on click
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed and can_shoot and not is_reloading:
-			_shoot()
+			var mode = _get_effective_fire_mode()
+			if mode == "burst" and weapon_data[current_weapon]["auto"]:
+				_start_burst()
+			elif mode == "semi" or not weapon_data[current_weapon]["auto"]:
+				_shoot()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and can_grenade:
 			_throw_grenade()
-		# Track firing state for auto weapons
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			is_firing = event.pressed
 	
@@ -203,6 +221,61 @@ func _notify_weapon_change() -> void:
 	var main = get_tree().current_scene
 	if main.has_method("on_weapon_changed"):
 		main.on_weapon_changed(current_weapon)
+	current_fire_mode = "auto"
+	is_bursting = false
+	burst_remaining = 0
+	if main.has_method("on_fire_mode_changed"):
+		main.on_fire_mode_changed(current_fire_mode)
+
+# ==================== FIRE MODES ====================
+
+func _get_effective_fire_mode() -> String:
+	if current_weapon in fire_mode_weapons:
+		return current_fire_mode
+	return "semi"
+
+# Cycle fire mode: auto → burst → semi → auto
+func _cycle_fire_mode() -> void:
+	if current_weapon not in fire_mode_weapons:
+		return
+	
+	var idx = fire_modes.find(current_fire_mode)
+	current_fire_mode = fire_modes[(idx + 1) % fire_modes.size()]
+	is_bursting = false
+	burst_remaining = 0
+	
+	var main = get_tree().current_scene
+	if main.has_method("on_fire_mode_changed"):
+		main.on_fire_mode_changed(current_fire_mode)
+
+# Start a burst of 3 shots
+func _start_burst() -> void:
+	if is_bursting:
+		return
+	is_bursting = true
+	burst_remaining = burst_count
+	_shoot_burst_tick()
+
+func _shoot_burst_tick() -> void:
+	if burst_remaining <= 0 or not can_shoot:
+		is_bursting = false
+		burst_remaining = 0
+		return
+	
+	var mag = current_mag[current_weapon]
+	if mag == 0:
+		is_bursting = false
+		burst_remaining = 0
+		if current_stock[current_weapon] != -1 and current_stock[current_weapon] <= 0:
+			return
+		_reload()
+		return
+	
+	burst_remaining -= 1
+	_shoot()
+	
+	if burst_remaining <= 0:
+		is_bursting = false
 
 func _shoot() -> void:
 	if not bullet_scene:
