@@ -22,6 +22,7 @@ var is_dashing := false
 
 var can_shoot := true
 var is_firing := false
+var is_reloading := false
 var current_weapon := "pistol"
 var weapons := ["pistol", "shotgun", "sniper", "assault", "minigun", "rocket"]
 var weapon_index := 0
@@ -34,6 +35,19 @@ var weapon_data := {
 	"minigun": {"damage": 1, "cooldown": 0.04, "speed": 400.0, "count": 1, "spread": 0.15, "piercing": false, "auto": true},
 	"rocket":  {"damage": 8, "cooldown": 1.8,  "speed": 280.0, "count": 1, "spread": 0.0,  "piercing": false, "auto": false},
 }
+
+# Ammo data: mag_size, max_stock, reload_time (-1 = infinite)
+var ammo_data := {
+	"pistol":  {"mag_size": -1, "max_stock": -1, "reload_time": 0.4},
+	"shotgun": {"mag_size": 4,  "max_stock": 24, "reload_time": 1.5},
+	"sniper":  {"mag_size": 3,  "max_stock": 12, "reload_time": 1.8},
+	"assault": {"mag_size": 20, "max_stock": 80, "reload_time": 1.2},
+	"minigun": {"mag_size": 50, "max_stock": 130,"reload_time": 3.0},
+	"rocket":  {"mag_size": 2,  "max_stock": 6,  "reload_time": 2.5},
+}
+
+var current_mag := {}
+var current_stock := {}
 
 var base_weapon_data := {}
 var damage_buff_active := false
@@ -84,6 +98,16 @@ func _ready() -> void:
 	# Save base weapon stats to prevent buff stacking
 	for w in weapon_data:
 		base_weapon_data[w] = weapon_data[w].duplicate()
+	
+	# Ammo for all weapons
+	for w in ammo_data:
+		var data = ammo_data[w]
+		if data["mag_size"] == -1:
+			current_mag[w] = -1
+			current_stock[w] = -1
+		else:
+			current_mag[w] = data["mag_size"]
+			current_stock[w] = data["max_stock"]
 	
 	# Load grenade scene if available
 	if ResourceLoader.exists("res://Scenes/Grenade/grenade.tscn"):
@@ -139,11 +163,13 @@ func _input(event: InputEvent) -> void:
 			_set_weapon(4)
 		elif event.keycode == KEY_6:
 			_set_weapon(5)
+		elif event.keycode == KEY_R:
+			_reload()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		# Non-auto weapons fire on click
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed and can_shoot:
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed and can_shoot and not is_reloading:
 			_shoot()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and can_grenade:
 			_throw_grenade()
@@ -160,12 +186,14 @@ func _unhandled_input(event: InputEvent) -> void:
 # ==================== WEAPONS ====================
 
 func _switch_weapon(dir: int) -> void:
+	_cancel_reload()
 	weapon_index = wrapi(weapon_index + dir, 0, weapons.size())
 	current_weapon = weapons[weapon_index]
 	is_firing = false
 	_notify_weapon_change()
 
 func _set_weapon(index: int) -> void:
+	_cancel_reload()
 	if index >= 0 and index < weapons.size():
 		weapon_index = index
 		current_weapon = weapons[weapon_index]
@@ -179,6 +207,16 @@ func _notify_weapon_change() -> void:
 
 func _shoot() -> void:
 	if not bullet_scene:
+		return
+	if is_reloading:
+		return
+		
+	# AMMO CHECK
+	var mag = current_mag[current_weapon]
+	if mag == 0:
+		if current_stock[current_weapon] <= 0:
+			return
+		_reload()
 		return
 	
 	var data = weapon_data[current_weapon]
@@ -214,6 +252,9 @@ func _shoot() -> void:
 		bullet.global_position = global_position + Vector2.RIGHT.rotated(final_angle) * 20
 		bullet.rotation = final_angle
 	
+	if current_mag[current_weapon] != -1:
+		current_mag[current_weapon] -= 1
+		
 	# Muzzle flash
 	var flash_pos = global_position + Vector2.RIGHT.rotated(base_angle) * 20
 	Effects.spawn_muzzle_flash(get_parent(), flash_pos, base_angle)
@@ -228,6 +269,61 @@ func _shoot() -> void:
 	can_shoot = false
 	await get_tree().create_timer(data["cooldown"]).timeout
 	can_shoot = true
+	
+# ==================== RELOAD ====================
+
+func _reload() -> void:
+	var a = ammo_data[current_weapon]
+	
+	# Can't reload infinite weapons
+	if a["mag_size"] == -1:
+		return
+	# Already full
+	if current_mag[current_weapon] == a["mag_size"]:
+		return
+	# No stock left
+	if current_stock[current_weapon] <= 0:
+		return
+	# Already reloading
+	if is_reloading:
+		return
+	
+	is_reloading = true
+	is_firing = false
+	
+	# Visual feedback
+	sprite.modulate = Color(0.7, 0.7, 1.0)
+	
+	await get_tree().create_timer(a["reload_time"]).timeout
+	
+	if not is_instance_valid(self):
+		return
+	
+	var needed = a["mag_size"] - current_mag[current_weapon]
+	var available = current_stock[current_weapon]
+	var to_load = min(needed, available)
+	
+	current_mag[current_weapon] += to_load
+	current_stock[current_weapon] -= to_load
+	
+	sprite.modulate = Color.WHITE
+	is_reloading = false
+	
+func _cancel_reload() -> void:
+	if is_reloading:
+		is_reloading = false
+		sprite.modulate = Color.WHITE
+
+# ==================== AMMO PICKUP ====================
+
+func add_ammo(weapon: String, amount: int) -> void:
+	if ammo_data[weapon]["mag_size"] == -1:
+		return
+	current_stock[weapon] = min(current_stock[weapon] + amount, ammo_data[weapon]["max_stock"])
+
+func add_ammo_all(amount: int) -> void:
+	for w in ammo_data:
+		add_ammo(w, amount)
 
 # ==================== GRENADE ====================
 
@@ -402,6 +498,8 @@ func apply_powerup(type: String) -> void:
 	match type:
 		"heal":
 			health = min(health + 2, 5)
+		"ammo":
+			add_ammo_all(20)
 		"fire_rate":
 			if fire_rate_buff_active:
 				return

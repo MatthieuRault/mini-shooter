@@ -427,6 +427,6 @@ func _drop_powerups(main: Node) -> void:
 			main.call_deferred("add_child", powerup)
 	elif randf() < 0.3:
 		var powerup = powerup_scene.instantiate()
-		powerup.setup(["heal", "fire_rate", "damage"].pick_random())
+		powerup.setup(["heal", "fire_rate", "damage", "ammo", "ammo"].pick_random())
 		powerup.global_position = global_position
 		main.call_deferred("add_child", powerup)

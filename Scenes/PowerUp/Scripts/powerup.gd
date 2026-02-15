@@ -23,6 +23,9 @@ func setup(power_type: String) -> void:
 			$Sprite2D.texture = tex_fire_rate
 		"damage":
 			$Sprite2D.texture = tex_damage
+		"ammo":			
+			$Sprite2D.texture = tex_fire_rate
+			$Sprite2D.modulate = Color(1.0, 0.9, 0.3)
 	$Sprite2D.scale = Vector2(0.35, 0.35)
 
 func _ready() -> void:

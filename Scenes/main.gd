@@ -27,6 +27,7 @@ var current_weapon_name := "pistol"
 var hearts_container : HBoxContainer
 var weapon_icon : TextureRect
 var weapon_label : Label
+var ammo_label : Label
 var grenade_icon : TextureRect
 var dash_icon : TextureRect
 var mine_icon : TextureRect
@@ -281,6 +282,13 @@ func _create_hud() -> void:
 	weapon_label.add_theme_font_size_override("font_size", 14)
 	hud.add_child(weapon_label)
 	
+	# Ammo display
+	ammo_label = Label.new()
+	ammo_label.text = ""
+	ammo_label.add_theme_font_size_override("font_size", 12)
+	ammo_label.modulate = Color(0.9, 0.9, 0.7)
+	hud.add_child(ammo_label)
+	
 	_add_separator(hud)
 	
 	# Grenade
@@ -352,6 +360,26 @@ func _update_hud() -> void:
 	}
 	weapon_icon.texture = weapon_icons.get(current_weapon_name, icon_pistol)
 	weapon_label.text = weapon_names.get(current_weapon_name, "")
+	
+	# Ammo display
+	if player.is_reloading:
+		ammo_label.text = "RELOADING"
+		ammo_label.modulate = Color(1.0, 0.5, 0.3)
+	elif player.current_mag.has(current_weapon_name):
+		var mag = player.current_mag[current_weapon_name]
+		var stock = player.current_stock[current_weapon_name]
+		if mag == -1:
+			ammo_label.text = ""
+			ammo_label.modulate = Color(0.9, 0.9, 0.7)
+		else:
+			ammo_label.text = "%s / %s" % [mag, stock]
+			# Color warning when low on ammo
+			if mag == 0 and stock == 0:
+				ammo_label.modulate = Color(1.0, 0.2, 0.2)
+			elif mag <= 2:
+				ammo_label.modulate = Color(1.0, 0.7, 0.3)
+			else:
+				ammo_label.modulate = Color(0.9, 0.9, 0.7)
 	
 	# Grenade, dash, mine cooldowns
 	grenade_icon.modulate = Color.WHITE if player.can_grenade else Color(1, 1, 1, 0.3)
