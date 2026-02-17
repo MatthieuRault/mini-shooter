@@ -6,18 +6,18 @@ var map_size := Vector2(960, 540)
 
 # ==================== GAME STATE ====================
 
-var score := 0
+var score        := 0
 var is_game_over := false
 
 # ==================== WAVE SYSTEM ====================
 
-var current_wave := 0
+var current_wave     := 0
 var enemies_to_spawn := 0
-var enemies_alive := 0
-var wave_active := false
-var between_waves := false
-var boss_alive := false
-var spawn_interval := 1.0
+var enemies_alive    := 0
+var wave_active      := false
+var between_waves    := false
+var boss_alive       := false
+var spawn_interval   := 1.0
 
 # ==================== HUD STATE ====================
 
@@ -25,40 +25,41 @@ var current_weapon_name := "pistol"
 
 # Top HUD
 var hearts_container : HBoxContainer
-var wave_label : Label
-var score_display : Label
+var wave_label       : Label
+var score_display    : Label
 
-# Bottom weapon HUD
-var weapon_icon : TextureRect
-var weapon_label : Label
-var ammo_label : Label
-var grenade_icon : TextureRect
-var dash_icon : TextureRect
-var mine_icon : TextureRect
+# Bottom weapon HUD — 3 inventory slots
+var inv_panels : Array = []
+var inv_icons  : Array = []
+var inv_ammos  : Array = []
+
 var fire_mode_label : Label
+var grenade_icon    : TextureRect
+var dash_icon       : TextureRect
+var mine_icon       : TextureRect
 
 # ==================== BOSS HP BAR ====================
 
 var boss_bar_container : PanelContainer
-var boss_bar_fill : ColorRect
-var boss_bar_bg : ColorRect
-var boss_name_label : Label
-var boss_hp_label : Label
-var boss_bar_width := 200.0
+var boss_bar_fill      : ColorRect
+var boss_bar_bg        : ColorRect
+var boss_name_label    : Label
+var boss_hp_label      : Label
+var boss_bar_width     := 200.0
 
-# ==================== PAUSE MENU ====================
+# ==================== PAUSE ====================
 
-var is_paused := false
-var pause_overlay : ColorRect
+var is_paused       := false
+var pause_overlay   : ColorRect
 var pause_container : VBoxContainer
 
 # ==================== RADIO ====================
 
-var radio_label : Label
-var radio_callsign : Label
+var radio_label     : Label
+var radio_callsign  : Label
 var radio_container : PanelContainer
-var radio_tween : Tween
-var radio_visible := false
+var radio_tween     : Tween
+var radio_visible   := false
 
 var RADIO_MESSAGES := {
 	# === ACT I — PREMIER CONTACT ===
@@ -99,26 +100,31 @@ var RADIO_LATE_GAME := [
 	{"from": "DERNIER SURVIVANT", "msg": "Je commence à comprendre leur langage. Les cris des orcs. Les murmures des morts. C'est pas bon signe."},
 ]
 
+# ==================== GUARANTEED DROP SCHEDULE ====================
+
+const GUARANTEED_DROPS := {
+	3:  "shotgun",   # First upgrade: crowd control
+	5:  "sniper",    # Reward for surviving the first boss
+	8:  "minigun",   # Mid-game power spike
+	10: "rocket",    # Second boss reward
+}
+
 # ==================== RESOURCES ====================
 
-var enemy_scene = preload("res://Scenes/Main/Enemy/enemy.tscn")
+var enemy_scene    = preload("res://Scenes/Main/Enemy/enemy.tscn")
 var gameover_sound = preload("res://Sounds/game_over.wav")
 
-# HUD icons
-var icon_heart = preload("res://Scenes/Main/HUD/Sprites/icon_heart.png")
+var icon_heart       = preload("res://Scenes/Main/HUD/Sprites/icon_heart.png")
 var icon_heart_empty = preload("res://Scenes/Main/HUD/Sprites/icon_heart_empty.png")
-var icon_pistol = preload("res://Scenes/Main/HUD/Sprites/icon_pistol.png")
-var icon_shotgun = preload("res://Scenes/Main/HUD/Sprites/icon_shotgun.png")
-var icon_sniper = preload("res://Scenes/Main/HUD/Sprites/icon_sniper.png")
-var icon_assault = preload("res://Scenes/Main/HUD/Sprites/icon_assault.png")
-var icon_minigun = preload("res://Scenes/Main/HUD/Sprites/icon_minigun.png")
-var icon_rocket = preload("res://Scenes/Main/HUD/Sprites/icon_rocket.png")
-var icon_grenade = preload("res://Scenes/Main/HUD/Sprites/icon_grenade.png")
-var icon_dash = preload("res://Scenes/Main/HUD/Sprites/icon_dash.png")
-var icon_mine = preload("res://Scenes/Main/HUD/Sprites/icon_mine.png")
-
-
-# ==================== NODE REFERENCES ====================
+var icon_pistol      = preload("res://Scenes/Main/HUD/Sprites/icon_pistol.png")
+var icon_shotgun     = preload("res://Scenes/Main/HUD/Sprites/icon_shotgun.png")
+var icon_sniper      = preload("res://Scenes/Main/HUD/Sprites/icon_sniper.png")
+var icon_assault     = preload("res://Scenes/Main/HUD/Sprites/icon_assault.png")
+var icon_minigun     = preload("res://Scenes/Main/HUD/Sprites/icon_minigun.png")
+var icon_rocket      = preload("res://Scenes/Main/HUD/Sprites/icon_rocket.png")
+var icon_grenade     = preload("res://Scenes/Main/HUD/Sprites/icon_grenade.png")
+var icon_dash        = preload("res://Scenes/Main/HUD/Sprites/icon_dash.png")
+var icon_mine        = preload("res://Scenes/Main/HUD/Sprites/icon_mine.png")
 
 @onready var score_label = $CanvasLayer/MarginContainer/Label
 
@@ -148,133 +154,72 @@ var obstacle_types := [
 
 func _create_obstacles() -> void:
 	var player_spawn = Vector2(87, 129)
-	var margin = 50.0
-	var min_spacing = 45.0
 	var placed : Array[Vector2] = []
-	
-	# Random count: 8-14 obstacles per run
-	var count = randi_range(8, 14)
-	
-	for i in count:
-		var pos := Vector2.ZERO
+
+	for i in randi_range(8, 14):
+		var pos   := Vector2.ZERO
 		var valid := false
-		var attempts := 0
 		
-		# Try to find a valid position
-		while not valid and attempts < 30:
-			attempts += 1
-			pos = Vector2(
-				randf_range(margin, map_size.x - margin),
-				randf_range(margin, map_size.y - margin)
-			)
+		for _a in 30:
+			pos = Vector2(randf_range(50, map_size.x - 50), randf_range(50, map_size.y - 50))
+			if pos.distance_to(player_spawn) < 80: continue
 			
-			# Not too close to player spawn
-			if pos.distance_to(player_spawn) < 80.0:
-				continue
+			var ok := true
 			
-			# Not overlapping other obstacles
-			var overlap := false
 			for p in placed:
-				if pos.distance_to(p) < min_spacing:
-					overlap = true
-					break
-			if overlap:
-				continue
+				if pos.distance_to(p) < 45: ok = false; break
+			if ok: valid = true; break
+		
+		if valid:
+			placed.append(pos)
+			_spawn_obstacle(pos, obstacle_types[randi() % obstacle_types.size()])
+
+	# Add 1–3 tight clusters of crates
+	for _c in randi_range(1, 3):
+		var center = Vector2(randf_range(150, map_size.x - 150), randf_range(100, map_size.y - 100))
+		if center.distance_to(player_spawn) < 100: continue
+		for _j in randi_range(2, 3):
+			var cpos = center + Vector2(randf_range(-30, 30), randf_range(-20, 20))
 			
-			valid = true
-		
-		if not valid:
-			continue
-		
-		placed.append(pos)
-		
-		# Pick a random obstacle type
-		var type = obstacle_types[randi() % obstacle_types.size()]
-		_spawn_obstacle(pos, type)
-	
-	# Add 1-3 small clusters (2-3 obstacles grouped tightly)
-	var cluster_count = randi_range(1, 3)
-	for c in cluster_count:
-		var center := Vector2(
-			randf_range(150, map_size.x - 150),
-			randf_range(100, map_size.y - 100)
-		)
-		
-		if center.distance_to(player_spawn) < 100.0:
-			continue
-		
-		var cluster_size = randi_range(2, 3)
-		for j in cluster_size:
-			var offset = Vector2(randf_range(-30, 30), randf_range(-20, 20))
-			var cpos = center + offset
+			var ok := true
 			
-			# Check spacing with existing obstacles
-			var too_close := false
 			for p in placed:
-				if cpos.distance_to(p) < 30.0:
-					too_close = true
-					break
-			if too_close:
-				continue
-			
-			placed.append(cpos)
-			var type = obstacle_types[0]  # Clusters use crates
-			_spawn_obstacle(cpos, type)
+				if cpos.distance_to(p) < 30: ok = false; break
+			if ok:
+				placed.append(cpos)
+				_spawn_obstacle(cpos, obstacle_types[0])
 
 func _spawn_obstacle(pos: Vector2, type: Dictionary) -> void:
 	var body = StaticBody2D.new()
-	var sprite = Sprite2D.new()
-	var col = CollisionShape2D.new()
-	var shape = RectangleShape2D.new()
-	
-	sprite.texture = load(type["texture"])
-	shape.size = type["size"]
-	col.shape = shape
-	body.collision_layer = 16
-	body.collision_mask = 0
-	
-	body.add_child(sprite)
-	body.add_child(col)
-	body.position = pos
-	add_child(body)
+	var spr  = Sprite2D.new()
+	var col  = CollisionShape2D.new()
+	var shp  = RectangleShape2D.new()
+	spr.texture = load(type["texture"]); shp.size = type["size"]
+	col.shape = shp; body.collision_layer = 16; body.collision_mask = 0
+	body.add_child(spr); body.add_child(col); body.position = pos; add_child(body)
 
 func _create_walls() -> void:
-	var thickness = 16.0
-	var walls = [
-		{"pos": Vector2(map_size.x / 2, thickness / 2), "size": Vector2(map_size.x, thickness)},
-		{"pos": Vector2(map_size.x / 2, map_size.y - thickness / 2), "size": Vector2(map_size.x, thickness)},
-		{"pos": Vector2(thickness / 2, map_size.y / 2), "size": Vector2(thickness, map_size.y)},
-		{"pos": Vector2(map_size.x - thickness / 2, map_size.y / 2), "size": Vector2(thickness, map_size.y)},
-	]
-	
-	for w in walls:
-		var body = StaticBody2D.new()
-		var sprite = Sprite2D.new()
-		var col = CollisionShape2D.new()
-		var shape = RectangleShape2D.new()
-		
-		shape.size = w["size"]
-		col.shape = shape
-		sprite.region_enabled = true
-		sprite.region_rect = Rect2(Vector2.ZERO, w["size"])
-		sprite.texture = preload("res://Scenes/Main/Sprites/wall_brick.png")
-		sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		
-		body.collision_layer = 16
-		body.collision_mask = 1 | 16
-		body.position = w["pos"]
-		body.add_child(sprite)
-		body.add_child(col)
-		add_child(body)
+	var t := 16.0
+	for w in [
+		{"pos": Vector2(map_size.x / 2, t / 2),             "size": Vector2(map_size.x, t)},
+		{"pos": Vector2(map_size.x / 2, map_size.y - t / 2),"size": Vector2(map_size.x, t)},
+		{"pos": Vector2(t / 2, map_size.y / 2),             "size": Vector2(t, map_size.y)},
+		{"pos": Vector2(map_size.x - t / 2, map_size.y / 2),"size": Vector2(t, map_size.y)},
+	]:
+		var body = StaticBody2D.new(); var spr = Sprite2D.new()
+		var col  = CollisionShape2D.new(); var shp = RectangleShape2D.new()
+		shp.size = w["size"]; col.shape = shp
+		spr.region_enabled = true; spr.region_rect = Rect2(Vector2.ZERO, w["size"])
+		spr.texture = preload("res://Scenes/Main/Sprites/wall_brick.png")
+		spr.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		body.collision_layer = 16; body.collision_mask = 1 | 16
+		body.position = w["pos"]; body.add_child(spr); body.add_child(col); add_child(body)
 
 # ==================== TOP HUD (hearts + wave + score) ====================
 
 func _create_top_hud() -> void:
 	var hud = HBoxContainer.new()
-	hud.anchor_right = 1.0
-	hud.offset_left = 8
-	hud.offset_top = 4
-	hud.offset_right = -8
+	hud.anchor_right = 1.0; hud.offset_left = 8; hud.offset_top = 4; hud.offset_right = -8
 	hud.add_theme_constant_override("separation", 8)
 	$CanvasLayer.add_child(hud)
 	
@@ -284,215 +229,263 @@ func _create_top_hud() -> void:
 	hud.add_child(hearts_container)
 	for i in 5:
 		var h = TextureRect.new()
-		h.texture = icon_heart
-		h.stretch_mode = TextureRect.STRETCH_KEEP
+		h.texture = icon_heart; h.stretch_mode = TextureRect.STRETCH_KEEP
 		h.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		hearts_container.add_child(h)
-	
+
 	# Separator
-	var sep = Label.new()
-	sep.text = "|"
-	sep.add_theme_font_size_override("font_size", 10)
-	sep.modulate = Color(1, 1, 1, 0.25)
+	var sep = Label.new(); sep.text = "|"
+	sep.add_theme_font_size_override("font_size", 10); sep.modulate = Color(1, 1, 1, 0.25)
 	hud.add_child(sep)
-	
+
 	# Wave
-	wave_label = Label.new()
-	wave_label.text = "Vague 1"
-	wave_label.add_theme_font_size_override("font_size", 12)
-	hud.add_child(wave_label)
-	
+	wave_label = Label.new(); wave_label.text = "Wave 1"
+	wave_label.add_theme_font_size_override("font_size", 12); hud.add_child(wave_label)
+
 	# Spacer
 	var spacer = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hud.add_child(spacer)
-	
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL; hud.add_child(spacer)
+
+	# Escape
+	var esc_hint = Label.new(); esc_hint.text = "[ESC] Pause"
+	esc_hint.add_theme_font_size_override("font_size", 9); esc_hint.modulate = Color(1, 1, 1, 0.28)
+	hud.add_child(esc_hint)
+
 	# Score (right)
-	score_display = Label.new()
-	score_display.text = "0"
+	score_display = Label.new(); score_display.text = "0"
 	score_display.add_theme_font_size_override("font_size", 12)
 	score_display.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	score_display.size_flags_horizontal = Control.SIZE_SHRINK_END
 	hud.add_child(score_display)
-	
+
 	# Hide the tscn label
 	score_label.visible = false
 
-# ==================== BOTTOM WEAPON HUD ====================
+# ==================== BOTTOM WEAPON HUD (3 slots) ====================
 
 func _create_weapon_hud() -> void:
 	# Panel anchored bottom-left
 	var panel = PanelContainer.new()
-	panel.anchor_left = 0.0
-	panel.anchor_top = 1.0
-	panel.anchor_bottom = 1.0
-	panel.offset_left = 6
-	panel.offset_bottom = -6
-	panel.offset_top = -30
-	panel.offset_right = 200
-	
+	panel.anchor_left = 0.0; panel.anchor_top = 1.0; panel.anchor_bottom = 1.0
+	panel.offset_left = 6; panel.offset_bottom = -6; panel.offset_top = -36; panel.offset_right = 370
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.0, 0.0, 0.0, 0.45)
-	style.border_color = Color(1, 1, 1, 0.15)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	style.content_margin_left = 6
-	style.content_margin_right = 6
-	style.content_margin_top = 3
-	style.content_margin_bottom = 3
+	style.bg_color = Color(0, 0, 0, 0.50); style.border_color = Color(1, 1, 1, 0.12)
+	style.set_border_width_all(1); style.set_corner_radius_all(3)
+	style.content_margin_left = 6; style.content_margin_right = 6
+	style.content_margin_top = 4; style.content_margin_bottom = 4
 	panel.add_theme_stylebox_override("panel", style)
-	
+
 	var hbox = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 5)
-	panel.add_child(hbox)
-	
-	# Weapon icon
-	weapon_icon = TextureRect.new()
-	weapon_icon.texture = icon_pistol
-	weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP
-	weapon_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	hbox.add_child(weapon_icon)
-	
-	# Weapon name
-	weapon_label = Label.new()
-	weapon_label.text = "Pistol"
-	weapon_label.add_theme_font_size_override("font_size", 10)
-	hbox.add_child(weapon_label)
-	
-	# Ammo
-	ammo_label = Label.new()
-	ammo_label.text = "∞"
-	ammo_label.add_theme_font_size_override("font_size", 10)
-	ammo_label.modulate = Color(0.7, 0.7, 0.7)
-	hbox.add_child(ammo_label)
-	
-	# Small separator
-	var sep = Label.new()
-	sep.text = "|"
-	sep.add_theme_font_size_override("font_size", 10)
-	sep.modulate = Color(1, 1, 1, 0.2)
-	hbox.add_child(sep)
-	
+	hbox.add_theme_constant_override("separation", 4); panel.add_child(hbox)
+
+	# Build 3 inventory slots
+	var slot_keys := ["[1]", "[2]", "[3]"]
+	for s in 3:
+		var sp = PanelContainer.new()
+		var ss = StyleBoxFlat.new()
+		ss.bg_color = Color(0, 0, 0, 0); ss.border_color = Color(1, 1, 1, 0)
+		ss.set_border_width_all(1); ss.set_corner_radius_all(2)
+		ss.content_margin_left = 4; ss.content_margin_right = 4
+		ss.content_margin_top = 2; ss.content_margin_bottom = 2
+		sp.add_theme_stylebox_override("panel", ss)
+		sp.custom_minimum_size = Vector2(95, 26)
+		inv_panels.append(sp)
+
+		var sh = HBoxContainer.new()
+		sh.add_theme_constant_override("separation", 3); sp.add_child(sh)
+
+		var kl = Label.new(); kl.text = slot_keys[s]
+		kl.add_theme_font_size_override("font_size", 8); kl.modulate = Color(1, 1, 1, 0.35)
+		sh.add_child(kl)
+
+		var ir = TextureRect.new()
+		ir.texture = icon_pistol if s == 0 else null
+		ir.stretch_mode = TextureRect.STRETCH_KEEP
+		ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		sh.add_child(ir); inv_icons.append(ir)
+
+		var al = Label.new(); al.text = "∞" if s == 0 else ""
+		al.add_theme_font_size_override("font_size", 9); al.modulate = Color(0.8, 0.8, 0.8)
+		sh.add_child(al); inv_ammos.append(al)
+
+		hbox.add_child(sp)
+		if s < 2:
+			var d = Label.new(); d.text = "|"
+			d.add_theme_font_size_override("font_size", 10); d.modulate = Color(1, 1, 1, 0.15)
+			hbox.add_child(d)
+
+	# [G] swap reminder
+	var g_hint = Label.new(); g_hint.text = "[G] Swap"
+	g_hint.add_theme_font_size_override("font_size", 8); g_hint.modulate = Color(1.0, 0.85, 0.3, 0.6)
+	hbox.add_child(g_hint)
+
+	# Utility icons (grenade / dash / mine)
+	var div1 = Label.new(); div1.text = "|"
+	div1.add_theme_font_size_override("font_size", 10); div1.modulate = Color(1, 1, 1, 0.15)
+	hbox.add_child(div1)
+
 	# Grenade icon
-	grenade_icon = TextureRect.new()
-	grenade_icon.texture = icon_grenade
+	grenade_icon = TextureRect.new(); grenade_icon.texture = icon_grenade
 	grenade_icon.stretch_mode = TextureRect.STRETCH_KEEP
-	grenade_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	hbox.add_child(grenade_icon)
-	
+	grenade_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST; hbox.add_child(grenade_icon)
+
 	# Dash icon
-	dash_icon = TextureRect.new()
-	dash_icon.texture = icon_dash
+	dash_icon = TextureRect.new(); dash_icon.texture = icon_dash
 	dash_icon.stretch_mode = TextureRect.STRETCH_KEEP
-	dash_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	hbox.add_child(dash_icon)
-	
+	dash_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST; hbox.add_child(dash_icon)
+
 	# Mine icon
-	mine_icon = TextureRect.new()
-	mine_icon.texture = icon_mine
+	mine_icon = TextureRect.new(); mine_icon.texture = icon_mine
 	mine_icon.stretch_mode = TextureRect.STRETCH_KEEP
-	mine_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	hbox.add_child(mine_icon)
-	
-		# Fire mode indicator
-	var sep2 = Label.new()
-	sep2.text = "|"
-	sep2.add_theme_font_size_override("font_size", 10)
-	sep2.modulate = Color(1, 1, 1, 0.2)
-	hbox.add_child(sep2)
-	
-	fire_mode_label = Label.new()
-	fire_mode_label.text = ""
+	mine_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST; hbox.add_child(mine_icon)
+
+	var div2 = Label.new(); div2.text = "|"
+	div2.add_theme_font_size_override("font_size", 10); div2.modulate = Color(1, 1, 1, 0.15)
+	hbox.add_child(div2)
+
+	fire_mode_label = Label.new(); fire_mode_label.text = ""
 	fire_mode_label.add_theme_font_size_override("font_size", 9)
 	fire_mode_label.modulate = Color(0.6, 0.8, 1.0)
 	hbox.add_child(fire_mode_label)
-	
+
 	$CanvasLayer.add_child(panel)
-	
+
 # ==================== HUD UPDATE ====================
 
 func _update_hud() -> void:
 	var player = get_tree().get_first_node_in_group("player")
-	if not player:
-		return
-	
-	# Hearts
+	if not player: return
+
+	# Heart icons
 	for i in hearts_container.get_child_count():
 		var h = hearts_container.get_child(i) as TextureRect
 		h.texture = icon_heart if i < player.health else icon_heart_empty
 
-	# Weapon icon and name
+	# Weapon icon
 	var weapon_icons := {
-		"pistol": icon_pistol, "shotgun": icon_shotgun, "sniper": icon_sniper,
-		"assault": icon_assault, "minigun": icon_minigun, "rocket": icon_rocket,
+		"pistol":icon_pistol, "shotgun":icon_shotgun, "sniper":icon_sniper,
+		"assault":icon_assault, "minigun":icon_minigun, "rocket":icon_rocket,
 	}
-	var weapon_names := {
-		"pistol": "Pistol", "shotgun": "Shotgun", "sniper": "Sniper",
-		"assault": "Assault", "minigun": "Minigun", "rocket": "Rocket",
+	# Border colour matches drop rarity
+	var rarity_colors := {
+		"pistol":  Color(0.5,  0.5,  0.5,  0.5),
+		"shotgun": Color(0.85, 0.85, 0.85, 0.6),
+		"assault": Color(0.85, 0.85, 0.85, 0.6),
+		"sniper":  Color(0.25, 0.55, 1.0,  0.7),
+		"minigun": Color(0.25, 0.55, 1.0,  0.7),
+		"rocket":  Color(1.0,  0.45, 0.0,  0.85),
 	}
-	weapon_icon.texture = weapon_icons.get(current_weapon_name, icon_pistol)
-	weapon_label.text = weapon_names.get(current_weapon_name, "")
-	
-	# Ammo display
-	if player.is_reloading:
-		ammo_label.text = "RECHARGEMENT"
-		ammo_label.modulate = Color(1.0, 0.5, 0.3)
-	elif player.current_mag.has(current_weapon_name):
-		var mag = player.current_mag[current_weapon_name]
-		var stock = player.current_stock[current_weapon_name]
-		if stock == -1:
-			ammo_label.text = "%s|∞" % mag
-			if mag <= 3:
-				ammo_label.modulate = Color(1.0, 0.7, 0.3)
+
+	for s in 3:
+		var sp : PanelContainer = inv_panels[s]
+		var ir : TextureRect    = inv_icons[s]
+		var al : Label          = inv_ammos[s]
+		var ss : StyleBoxFlat   = sp.get_theme_stylebox("panel")
+
+		if s < player.weapons.size():
+			var w          = player.weapons[s]
+			var is_current = (w == player.current_weapon)
+			ir.texture     = weapon_icons.get(w, icon_pistol)
+			ir.modulate    = Color.WHITE if is_current else Color(1, 1, 1, 0.45)
+
+			if player.is_reloading and is_current:
+				al.text     = "RELOADING"
+				al.modulate = Color(0.7, 0.7, 1.0)
 			else:
-				ammo_label.modulate = Color(0.9, 0.9, 0.7)
+				var mag   = player.current_mag.get(w, 0)
+				var stock = player.current_stock.get(w, 0)
+				al.text   = ("%d|∞" % mag) if stock == -1 else ("%d|%d" % [mag, stock])
+				if mag == 0 and stock == 0:
+					al.modulate = Color(1.0, 0.2, 0.2)
+				elif mag <= 2:
+					al.modulate = Color(1.0, 0.7, 0.3)
+				else:
+					al.modulate = Color(0.85, 0.85, 0.85)
+
+			if is_current:
+				ss.bg_color     = Color(0.15, 0.15, 0.15, 0.7)
+				ss.border_color = rarity_colors.get(w, Color(1, 1, 1, 0.4))
+			else:
+				ss.bg_color     = Color(0, 0, 0, 0)
+				ss.border_color = Color(1, 1, 1, 0.08)
 		else:
-			ammo_label.text = "%s|%s" % [mag, stock]
-			if mag == 0 and stock == 0:
-				ammo_label.modulate = Color(1.0, 0.2, 0.2)
-			elif mag <= 2:
-				ammo_label.modulate = Color(1.0, 0.7, 0.3)
-			else:
-				ammo_label.modulate = Color(0.9, 0.9, 0.7)
-	
+			ir.texture      = null
+			al.text         = "— empty —"
+			al.modulate     = Color(1, 1, 1, 0.2)
+			ss.bg_color     = Color(0, 0, 0, 0)
+			ss.border_color = Color(1, 1, 1, 0.05)
+
 	# Cooldowns icons
 	grenade_icon.modulate = Color.WHITE if player.can_grenade else Color(1, 1, 1, 0.3)
-	dash_icon.modulate = Color.WHITE if player.can_dash else Color(1, 1, 1, 0.3)
-	mine_icon.modulate = Color.WHITE if player.can_mine else Color(1, 1, 1, 0.3)
-	
-	# Fire mode display (only for assault/minigun)
+	dash_icon.modulate    = Color.WHITE if player.can_dash    else Color(1, 1, 1, 0.3)
+	mine_icon.modulate    = Color.WHITE if player.can_mine    else Color(1, 1, 1, 0.3)
+
+	# Fire mode (assault / minigun only)
 	if current_weapon_name in ["assault", "minigun"]:
-		var mode_names := {"auto": "AUTO", "burst": "RAFALE", "semi": "SEMI"}
+		var mode_names  := {"auto": "AUTO", "burst": "BURST", "semi": "SEMI"}
 		var mode_colors := {
-			"auto": Color(0.6, 0.8, 1.0),
+			"auto":  Color(0.6, 0.8, 1.0),
 			"burst": Color(1.0, 0.8, 0.3),
-			"semi": Color(0.5, 1.0, 0.5),
+			"semi":  Color(0.5, 1.0, 0.5),
 		}
-		fire_mode_label.text = "[B] %s" % mode_names.get(player.current_fire_mode, "AUTO")
+		fire_mode_label.text     = "[B] %s" % mode_names.get(player.current_fire_mode, "AUTO")
 		fire_mode_label.modulate = mode_colors.get(player.current_fire_mode, Color.WHITE)
-		fire_mode_label.visible = true
+		fire_mode_label.visible  = true
 	else:
 		fire_mode_label.visible = false
-	
+
 	# Wave display
 	if between_waves:
-		wave_label.text = "Prochaine vague..."
-		wave_label.modulate = Color.WHITE
+		wave_label.text = "Prochaine vague..."; wave_label.modulate = Color.WHITE
 	elif current_wave % 5 == 0 and boss_alive:
-		wave_label.text = "Vague %s - BOSS!" % current_wave
-		wave_label.modulate = Color.RED
+		wave_label.text = "Vague %s — BOSS!" % current_wave; wave_label.modulate = Color.RED
 	else:
-		wave_label.text = "Vague %s" % current_wave
-		wave_label.modulate = Color.WHITE
-	
+		wave_label.text = "Vague %s" % current_wave; wave_label.modulate = Color.WHITE
+		
 	# Score
 	score_display.text = "Score: %s" % score
 
 func on_weapon_changed(weapon: String) -> void:
 	current_weapon_name = weapon
-	
-func on_fire_mode_changed(mode: String) -> void:
+
+func on_fire_mode_changed(_mode: String) -> void:
 	pass
+
+# ==================== GUARANTEED WEAPON DROPS ====================
+
+func _spawn_guaranteed_drop(weapon: String) -> void:
+	if not ResourceLoader.exists("res://Scenes/WeaponDrop/weapon_drop.tscn"):
+		return
+	var scene = load("res://Scenes/WeaponDrop/weapon_drop.tscn")
+	var drop  = scene.instantiate()
+	drop.setup(weapon)
+	drop.global_position = Vector2(randf_range(200, 760), randf_range(120, 420))
+	add_child(drop)
+	_show_drop_announcement(weapon)
+
+# Brief floating announcement when a guaranteed drop spawns on the map.
+func _show_drop_announcement(weapon: String) -> void:
+	var names  := {"shotgun":"SHOTGUN","assault":"ASSAULT","sniper":"SNIPER","minigun":"MINIGUN","rocket":"ROCKET"}
+	var colors := {
+		"shotgun": Color(0.85, 0.85, 0.85),
+		"assault": Color(0.85, 0.85, 0.85),
+		"sniper":  Color(0.25, 0.55, 1.0),
+		"minigun": Color(0.25, 0.55, 1.0),
+		"rocket":  Color(1.0,  0.45, 0.0),
+	}
+	var lbl = Label.new()
+	lbl.text = "▼  %s DROPPED !" % names.get(weapon, weapon.to_upper())
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.modulate = colors.get(weapon, Color.WHITE)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.anchor_left = 0.5; lbl.anchor_right = 0.5; lbl.anchor_top = 0.18
+	lbl.offset_left = -150; lbl.offset_right = 150
+	$CanvasLayer.add_child(lbl)
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(lbl, "position:y", lbl.position.y - 14, 1.5)
+	tween.tween_property(lbl, "modulate:a", 0.0, 1.5)
+	tween.chain().tween_callback(lbl.queue_free)
 
 # ==================== BOSS HP BAR ====================
 
@@ -772,7 +765,7 @@ func _input(event: InputEvent) -> void:
 	
 	# Controls reminder
 	var controls = Label.new()
-	controls.text = "ZQSD - Move  |  LMB - Shoot  |  RMB - Grenade\nF - Mine  |  Space - Dash  |  B - Fire Mode\n1-6 - Weapons  |  R - Reload  |  Scroll - Switch"
+	controls.text = "ZQSD - Move  |  LMB - Shoot  |  RMB - Grenade  |  ESC - Pause\nF - Mine  |  Space - Dash  |  B - Fire Mode  |  R - Rechargement\n1/2/3 - Weapons  |  G - Swap l'arme au sol  |  Molette - Cycle"
 	controls.add_theme_font_size_override("font_size", 8)
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls.modulate = Color(1, 1, 1, 0.4)
@@ -792,16 +785,20 @@ func _quit_to_title() -> void:
 func _start_next_wave() -> void:
 	current_wave += 1
 	wave_active = true
-	between_waves = false	
-	
+	between_waves = false
+
+	# Spawn guaranteed weapon drop if this wave has one scheduled
+	if GUARANTEED_DROPS.has(current_wave):
+		_spawn_guaranteed_drop(GUARANTEED_DROPS[current_wave])
+
 	if current_wave % 5 == 0:
 		enemies_to_spawn = 1
 		boss_alive = true
 	else:
 		enemies_to_spawn = 5 + current_wave * 3
-	
-	spawn_interval = max(0.3, 1.2 - current_wave * 0.05)
-	$Timer.wait_time = spawn_interval
+
+	spawn_interval         = max(0.3, 1.2 - current_wave * 0.05)
+	$Timer.wait_time       = spawn_interval
 	$Timer.start()
 
 func _start_intermission() -> void:
@@ -868,81 +865,38 @@ func game_over() -> void:
 
 func _get_available_types() -> Array:
 	var types := ["normal"]
-	
-	if current_wave >= 2:
-		types.append("fast")
-	if current_wave >= 3:
-		types.append("tank")
-	if current_wave >= 4:
-		types.append("shaman")
-	if current_wave >= 6:
-		types.append("volatile")
-	if current_wave >= 7:
-		types.append("necromancer")
-	if current_wave >= 8:
-		types.append("ghost")
-	
+	if current_wave >= 2: types.append("fast")
+	if current_wave >= 3: types.append("tank")
+	if current_wave >= 4: types.append("shaman")
+	if current_wave >= 6: types.append("volatile")
+	if current_wave >= 7: types.append("necromancer")
+	if current_wave >= 8: types.append("ghost")
 	return types
 
-# Weighted random selection from available types
 func _pick_enemy_type() -> String:
 	var types = _get_available_types()
-	
-	# Base weights for each type
-	var weights := {
-		"normal": 30,
-		"fast": 25,
-		"tank": 10,
-		"shaman": 15,
-		"necromancer": 10,
-		"volatile": 12,
-		"ghost": 8,
-	}
-	
-	# Scale down normal weight as more types unlock
-	if types.size() > 4:
-		weights["normal"] = 20
-	if types.size() > 6:
-		weights["normal"] = 15
-	
-	# Build weighted pool
-	var pool := []
-	var total := 0.0
-	for t in types:
-		total += weights.get(t, 10)
-		pool.append({"type": t, "cumulative": total})
-	
+	var weights := {"normal":30,"fast":25,"tank":10,"shaman":15,"necromancer":10,"volatile":12,"ghost":8}
+	if types.size() > 4: weights["normal"] = 20
+	if types.size() > 6: weights["normal"] = 15
+	var pool := []; var total := 0.0
+	for t in types: total += weights.get(t, 10); pool.append({"type": t, "cumulative": total})
 	var roll = randf() * total
 	for entry in pool:
-		if roll <= entry["cumulative"]:
-			return entry["type"]
-	
+		if roll <= entry["cumulative"]: return entry["type"]
 	return "normal"
 
 func _on_timer_timeout() -> void:
-	if enemies_to_spawn <= 0:
-		$Timer.stop()
-		return
-	
+	if enemies_to_spawn <= 0: $Timer.stop(); return
 	var enemy = enemy_scene.instantiate()
-	
 	if current_wave % 5 == 0:
-		enemy.setup("boss")
-		enemies_to_spawn = 0
-		$Timer.stop()
+		enemy.setup("boss"); enemies_to_spawn = 0; $Timer.stop(); _show_boss_bar()
 	else:
 		enemy.setup(_pick_enemy_type())
-	
-	# Spawn at map edges
-	var side = randi() % 4
+	var side   = randi() % 4
 	var margin = 40.0
-	
 	match side:
 		0: enemy.global_position = Vector2(randf() * map_size.x, margin)
 		1: enemy.global_position = Vector2(randf() * map_size.x, map_size.y - margin)
-		2: enemy.global_position = Vector2(margin, randf() * map_size.y)
-		3: enemy.global_position = Vector2(map_size.x - margin, randf() * map_size.y)
-	
-	add_child(enemy)
-	enemies_to_spawn -= 1
-	enemies_alive += 1
+		2: enemy.global_position = Vector2(margin,               randf() * map_size.y)
+		3: enemy.global_position = Vector2(map_size.x - margin,  randf() * map_size.y)
+	add_child(enemy); enemies_to_spawn -= 1; enemies_alive += 1

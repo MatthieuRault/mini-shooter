@@ -2,54 +2,54 @@ extends CharacterBody2D
 
 # ==================== MOVEMENT ====================
 
-var speed := 100.0
+var speed  := 100.0
 var player : CharacterBody2D
 
 # ==================== COMBAT ====================
 
-var health := 3
+var health     := 3
 var max_health := 3
 var enemy_type := "normal"
 var score_value := 10
-var damage := 1
-var is_dying := false
-var been_hit := false
+var damage     := 1
+var is_dying   := false
+var been_hit   := false
 
 # ==================== BOSS ====================
 
-var is_boss := false
+var is_boss            := false
 var boss_charge_cooldown := 3.0
-var boss_charge_timer := 0.0
-var is_charging := false
-var charge_speed := 350.0
+var boss_charge_timer  := 0.0
+var is_charging        := false
+var charge_speed       := 350.0
 
 # ==================== SHAMAN ====================
 
-var shoot_range := 150.0
+var shoot_range    := 150.0
 var shoot_cooldown := 2.0
-var shoot_timer := 0.0
-var bullet_speed := 200.0
-var bullet_damage := 1
+var shoot_timer    := 0.0
+var bullet_speed   := 200.0
+var bullet_damage  := 1
 
 # ==================== NECROMANCER ====================
 
-var necro_shoot_range := 170.0
+var necro_shoot_range    := 170.0
 var necro_shoot_cooldown := 2.5
-var necro_shoot_timer := 0.0
-var necro_bullet_speed := 180.0
-var necro_bullet_damage := 1
-var necro_drain_heal := 1
+var necro_shoot_timer    := 0.0
+var necro_bullet_speed   := 180.0
+var necro_bullet_damage  := 1
+var necro_drain_heal     := 1
 
 # ==================== VOLATILE ====================
 
-var split_level := 0
+var split_level      := 0
 var explosion_radius := 50.0
 var explosion_damage := 3
 
 # ==================== GHOST ====================
 
-var ghost_visible := true
-var ghost_timer := 0.0
+var ghost_visible          := true
+var ghost_timer            := 0.0
 var ghost_visible_duration := 2.0
 var ghost_invisible_duration := 2.5
 
@@ -57,22 +57,22 @@ var ghost_invisible_duration := 2.5
 
 var anim_timer := 0.0
 var anim_frame := 0
-var anim_speed := 0.15  # seconds per frame
+var anim_speed := 0.15 # seconds per frame
 
 # ==================== RESOURCES ====================
 
-var tex_normal = preload("res://Scenes/Main/Enemy/Sprites/mob_normal.png")
-var tex_fast = preload("res://Scenes/Main/Enemy/Sprites/mob_fast.png")
-var tex_tank = preload("res://Scenes/Main/Enemy/Sprites/mob_tank.png")
-var tex_shaman = preload("res://Scenes/Main/Enemy/Sprites/mob_ranged.png")
-var tex_volatile = preload("res://Scenes/Main/Enemy/Sprites/mob_splitter.png")
+var tex_normal      = preload("res://Scenes/Main/Enemy/Sprites/mob_normal.png")
+var tex_fast        = preload("res://Scenes/Main/Enemy/Sprites/mob_fast.png")
+var tex_tank        = preload("res://Scenes/Main/Enemy/Sprites/mob_tank.png")
+var tex_shaman      = preload("res://Scenes/Main/Enemy/Sprites/mob_ranged.png")
+var tex_volatile    = preload("res://Scenes/Main/Enemy/Sprites/mob_splitter.png")
 var tex_necromancer = preload("res://Scenes/Main/Enemy/Sprites/mob_exploder.png")
-var tex_ghost = preload("res://Scenes/Main/Enemy/Sprites/mob_ghost.png")
-var tex_boss = preload("res://Scenes/Main/Enemy/Sprites/mob_boss.png")
-var powerup_scene = preload("res://Scenes/PowerUp/powerup.tscn")
-var death_sound = preload("res://Sounds/enemy_death.wav")
+var tex_ghost       = preload("res://Scenes/Main/Enemy/Sprites/mob_ghost.png")
+var tex_boss        = preload("res://Scenes/Main/Enemy/Sprites/mob_boss.png")
+var powerup_scene   = preload("res://Scenes/PowerUp/powerup.tscn")
+var death_sound     = preload("res://Sounds/enemy_death.wav")
 
-# ==================== ENEMY DATA ====================
+## ==================== ENEMY DATA ====================
 
 const ENEMY_DATA := {
 	"normal":      { "speed":100.0, "hp":3,  "score":10,  "damage":1, "scale":1.0,  "anim":0.15 },
@@ -111,6 +111,20 @@ var HP_BAR_COLORS := {
 	"boss":        Color(1.0, 0.2, 0.2),
 }
 
+# ==================== WEAPON DROP CHANCES ====================
+
+const WEAPON_DROPS := {
+	#            chance   possible weapons
+	"normal":      [0.04, ["shotgun", "assault"]],
+	"fast":        [0.06, ["shotgun"]],
+	"tank":        [0.18, ["shotgun", "assault", "sniper"]],
+	"shaman":      [0.14, ["sniper"]],
+	"necromancer": [0.14, ["minigun"]],
+	"volatile":    [0.08, ["assault"]],
+	"ghost":       [0.10, ["sniper", "assault"]],
+	"boss":        [1.00, ["rocket", "minigun", "sniper"]],
+}
+
 # ==================== INITIALIZATION ====================
 
 func _ready() -> void:
@@ -121,23 +135,23 @@ func _ready() -> void:
 # Configure stats and appearance based on type
 func setup(type: String) -> void:
 	enemy_type = type
-	is_boss = (type == "boss")
-	
+	is_boss    = (type == "boss")
+
 	if not ENEMY_DATA.has(type):
 		push_error("Unknown enemy type: " + type)
 		return
-	
+
 	var data = ENEMY_DATA[type]
 	
 	# ==================== APPLY STATS ====================
-	speed = data["speed"]
-	health = data["hp"]
+	speed      = data["speed"]
+	health     = data["hp"]
 	max_health = health
 	score_value = data["score"]
-	damage = data["damage"]
+	damage     = data["damage"]
 	anim_speed = data["anim"]
-	
-	# ==================== APPLY TEXTURE ====================
+
+# ==================== APPLY TEXTURE ====================
 	var tex_map := {
 		"normal": tex_normal, "fast": tex_fast, "tank": tex_tank,
 		"shaman": tex_shaman, "necromancer": tex_necromancer,
@@ -245,7 +259,7 @@ func _animate(delta: float) -> void:
 		anim_frame = (anim_frame + 1) % 4
 		$Sprite2D.frame = anim_frame
 
-# ==================== DEFAULT MOVEMENT ====================
+# ==================== MOVEMENT PATTERNS ====================
 
 func _process_default(delta: float, direction: Vector2) -> void:
 	if is_boss:
@@ -274,7 +288,7 @@ func _boss_charge(direction: Vector2) -> void:
 		return
 	
 	is_charging = false
-	boss_charge_timer = 0.0
+	boss_charge_timer = 0.00
 
 # ==================== SHAMAN (LIGHTNING) ====================
 
@@ -294,7 +308,7 @@ func _process_shaman(delta: float, direction: Vector2, dist: float) -> void:
 	if dist <= shoot_range + 50 and shoot_timer >= shoot_cooldown:
 		shoot_timer = 0.0
 		_fire_bullet(direction, "shaman", bullet_speed, bullet_damage)
-		
+
 # ==================== NECROMANCER (DRAIN BOLTS) ====================
 
 func _process_necromancer(delta: float, direction: Vector2, dist: float) -> void:
@@ -318,7 +332,7 @@ func on_drain_hit() -> void:
 	await get_tree().create_timer(0.15).timeout
 	if is_instance_valid(self):
 		$Sprite2D.modulate = Color.WHITE
-		
+
 # ==================== SHARED PROJECTILE FIRING ====================
 
 func _fire_bullet(direction: Vector2, type: String, spd: float, dmg: int) -> void:
@@ -387,27 +401,27 @@ func take_damage(amount: int) -> void:
 func _die() -> void:
 	is_dying = true
 	var main = get_tree().current_scene
-	
+
 	if main.has_method("add_score"):
 		main.add_score(score_value)
-	
 	if is_boss and main.has_method("on_boss_killed"):
 		main.on_boss_killed()
-	
+
 	var audio = AudioStreamPlayer.new()
-	audio.stream = death_sound
-	audio.volume_db = -5 if is_boss else -12
+	audio.stream      = death_sound
+	audio.volume_db   = -5 if is_boss else -12
 	audio.pitch_scale = 0.6 if is_boss else 1.0
 	main.add_child(audio)
 	audio.play()
 	audio.finished.connect(audio.queue_free)
-	
+
 	# Volatile: AoE explosion + split
 	if enemy_type == "volatile":
 		_volatile_death(main)
-	
+
 	_drop_powerups(main)
-	
+	_drop_weapon(main)
+
 	# Death particles with type-specific color
 	Effects.spawn_death(main, global_position, DEATH_COLOR.get(enemy_type, Color.RED))
 	
@@ -420,32 +434,31 @@ func _hit_flash() -> void:
 	if is_instance_valid(self):
 		$Sprite2D.modulate = original_color
 
-# ==================== VOLATILE DEATH EXPLODE + SPLIT ====================
+# ==================== VOLATILE DEATH ====================
 
 func _volatile_death(main: Node) -> void:
 	var radius = explosion_radius if split_level == 0 else explosion_radius * 0.6
-	var dmg = explosion_damage if split_level == 0 else 2
-	
-	# AoE damage to nearby enemies (chain reactions!)
+	var dmg    = explosion_damage if split_level == 0 else 2
+
+	# AoE damage to nearby enemies
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		if enemy == self:
 			continue
 		if is_instance_valid(enemy) and global_position.distance_to(enemy.global_position) <= radius:
 			if enemy.has_method("take_damage"):
 				enemy.take_damage(dmg)
-	
+
 	# AoE damage to player
 	if is_instance_valid(player):
 		var dist = global_position.distance_to(player.global_position)
 		if dist <= radius and player.has_method("take_damage"):
-			var falloff = 1.0 - (dist / radius) * 0.5
-			player.take_damage(int(dmg * falloff))
+			player.take_damage(int(dmg * (1.0 - (dist / radius) * 0.5)))
 		if player.has_method("shake_camera"):
 			player.shake_camera(6.0 if split_level == 0 else 3.0, 0.25)
-	
+
 	Effects.spawn_explosion(main, global_position, radius)
-	
-	# Split into 2 smaller volatiles (level 0 only)
+
+	# Split into 2 smaller volatiles
 	if split_level == 0:
 		_spawn_volatile_splits(main)
 
@@ -454,16 +467,15 @@ func _spawn_volatile_splits(main: Node) -> void:
 	for i in 2:
 		var split = enemy_scene.instantiate()
 		split.setup("volatile")
-		split.split_level = 1
-		split.health = 2
-		split.max_health = 2
-		split.speed = 140.0
-		split.score_value = 10
-		split.damage = 1
+		split.split_level      = 1
+		split.health           = 2
+		split.max_health       = 2
+		split.speed            = 140.0
+		split.score_value      = 10
+		split.damage           = 1
 		split.explosion_radius = 35.0
 		split.explosion_damage = 2
-		var offset = Vector2(randf_range(-20, 20), randf_range(-20, 20))
-		split.global_position = global_position + offset
+		split.global_position  = global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
 		main.call_deferred("add_child", split)
 
 # ==================== POWER-UP DROPS ====================
@@ -480,3 +492,36 @@ func _drop_powerups(main: Node) -> void:
 		powerup.setup(["heal", "fire_rate", "damage", "ammo", "ammo"].pick_random())
 		powerup.global_position = global_position
 		main.call_deferred("add_child", powerup)
+
+# ==================== WEAPON DROPS ====================
+# Each enemy type has a drop chance and a pool of possible weapons.
+# Boss always drops an epic weapon guaranteed.
+
+func _drop_weapon(main: Node) -> void:
+	if not WEAPON_DROPS.has(enemy_type):
+		return
+
+	var entry   = WEAPON_DROPS[enemy_type]
+	var chance  = entry[0]
+	var pool    = entry[1]
+
+	# Roll against drop chance
+	if randf() > chance:
+		return
+
+	# Pick a random weapon from this enemy's loot pool
+	var weapon_type : String = pool[randi() % pool.size()]
+
+	# Spawn the weapon drop at the enemy's death position
+	if not ResourceLoader.exists("res://Scenes/WeaponDrop/weapon_drop.tscn"):
+		return
+
+	var drop_scene = load("res://Scenes/WeaponDrop/weapon_drop.tscn")
+	var drop       = drop_scene.instantiate()
+	drop.setup(weapon_type)
+
+	# Slight random offset so boss multi-drops don't overlap perfectly
+	var offset = Vector2(randf_range(-15, 15), randf_range(-15, 15))
+	drop.global_position = global_position + offset
+
+	main.call_deferred("add_child", drop)
