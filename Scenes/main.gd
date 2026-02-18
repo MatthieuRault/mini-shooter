@@ -132,10 +132,21 @@ var icon_mine        = preload("res://Scenes/Main/HUD/Sprites/icon_mine.png")
 
 @onready var score_label = $CanvasLayer/MarginContainer/Label
 
+# ==================== MUSIC ====================
+
+var music_player      : AudioStreamPlayer   # Main looping music
+var boss_music_player : AudioStreamPlayer   # Boss overlay (Dark Intro)
+
+var music_perpetual  = preload("res://Sounds/Music/Zander Noriega - Perpetual Tension.ogg")
+var music_undead     = preload("res://Sounds/Music/Undead-Rising.ogg")
+var music_fight      = preload("res://Sounds/Music/Zander-Noriega-Fight-Them-Until-We-Cant.ogg")
+var music_dark_intro = preload("res://Sounds/Music/Dark Intro.ogg")
+
 # ==================== INITIALIZATION ====================
 
 func _ready() -> void:
 	_load_high_score()
+	_create_music_players()
 	$Timer.timeout.connect(_on_timer_timeout)
 	$Timer.stop()
 	_create_obstacles()
@@ -219,6 +230,49 @@ func _create_walls() -> void:
 		spr.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 		body.collision_layer = 16; body.collision_mask = 1 | 16
 		body.position = w["pos"]; body.add_child(spr); body.add_child(col); add_child(body)
+
+# ==================== MUSIC SYSTEM ====================
+
+func _create_music_players() -> void:
+	# Main music player — loops the current track
+	music_player = AudioStreamPlayer.new()
+	music_player.volume_db = -12
+	music_player.bus = "Master"
+	add_child(music_player)
+
+	# Boss music overlay — plays Dark Intro on top
+	boss_music_player = AudioStreamPlayer.new()
+	boss_music_player.volume_db = -10
+	boss_music_player.bus = "Master"
+	add_child(boss_music_player)
+
+# Pick and play the right track based on current wave.
+func _update_music() -> void:
+	var target : AudioStream
+	if current_wave >= 10:
+		target = music_fight
+	elif current_wave >= 5:
+		target = music_undead
+	else:
+		target = music_perpetual
+
+	# Only switch if the track actually changes
+	if music_player.stream != target:
+		music_player.stream = target
+		music_player.play()
+
+func _play_boss_music() -> void:
+	boss_music_player.stream = music_dark_intro
+	boss_music_player.play()
+
+func _stop_boss_music() -> void:
+	if boss_music_player.playing:
+		var tw = create_tween()
+		tw.tween_property(boss_music_player, "volume_db", -60.0, 1.0)
+		tw.tween_callback(func():
+			boss_music_player.stop()
+			boss_music_player.volume_db = -10
+		)
 
 # ==================== TOP HUD (hearts + wave + score) ====================
 
@@ -596,6 +650,7 @@ func _hide_boss_bar() -> void:
 func on_boss_killed() -> void:
 	boss_alive = false
 	_hide_boss_bar()
+	_stop_boss_music()
 
 # ==================== RADIO DISPLAY ====================
 
@@ -796,11 +851,13 @@ func _start_next_wave() -> void:
 	if GUARANTEED_DROPS.has(current_wave):
 		_spawn_guaranteed_drop(GUARANTEED_DROPS[current_wave])
 
+	_update_music()
 	_show_wave_announcement()
 
 	if current_wave % 5 == 0:
 		enemies_to_spawn = 1
 		boss_alive = true
+		_play_boss_music()
 	else:
 		enemies_to_spawn = 5 + current_wave * 3
 

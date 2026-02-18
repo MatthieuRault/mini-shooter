@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c5yre3qxbonlu"
+path="res://.godot/imported/Zander Noriega - Perpetual Tension.ogg-2591ea562781e1c5f43568fb826f071f.oggvorbisstr"
+
+[deps]
+
+source_file="res://Sounds/Music/Zander Noriega - Perpetual Tension.ogg"
+dest_files=["res://.godot/imported/Zander Noriega - Perpetual Tension.ogg-2591ea562781e1c5f43568fb826f071f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

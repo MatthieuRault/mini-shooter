@@ -62,6 +62,8 @@ func _ready() -> void:
 	hint.modulate = Color(1.0, 0.85, 0.3, 0.0)   # Start invisible
 	hint.add_theme_font_size_override("font_size", 8)
 	add_child(hint)
+	
+var grab_sound = preload("res://Sounds/Music/item-grab.ogg")
 
 # ==================== GAME LOOP ====================
 
@@ -89,6 +91,12 @@ func _physics_process(delta: float) -> void:
 	if dist < 18.0:
 		if player.has_method("pickup_weapon"):
 			if player.pickup_weapon(weapon_type):
+				var audio = AudioStreamPlayer.new()
+				audio.stream = grab_sound
+				audio.volume_db = -8
+				get_tree().current_scene.add_child(audio)
+				audio.play()
+				audio.finished.connect(audio.queue_free)
 				queue_free()
 				return
 

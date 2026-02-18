@@ -1,11 +1,22 @@
 extends Control
 
+var music = preload("res://Sounds/Music/Iwan Gabovitch - Dark Ambience Loop.ogg")
+
 # ==================== INITIALIZATION ====================
 
 func _ready() -> void:
 	_create_background()
 	_create_title()
 	_create_menu()
+	_play_music()
+	
+func _play_music() -> void:
+	var player = AudioStreamPlayer.new()
+	player.stream     = music
+	player.volume_db  = -14
+	player.autoplay   = false
+	add_child(player)
+	player.play()
 
 # ==================== BACKGROUND ====================
 

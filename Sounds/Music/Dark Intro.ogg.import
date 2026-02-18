@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cc714f2ulu2vc"
+path="res://.godot/imported/Dark Intro.ogg-20bc775f828a334bcb6c18afed4339d5.oggvorbisstr"
+
+[deps]
+
+source_file="res://Sounds/Music/Dark Intro.ogg"
+dest_files=["res://.godot/imported/Dark Intro.ogg-20bc775f828a334bcb6c18afed4339d5.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
