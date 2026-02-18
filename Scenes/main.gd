@@ -933,11 +933,14 @@ func _start_intermission() -> void:
 
 # ==================== GAME LOOP ====================
 
-func _process(_delta) -> void:
+var _hud_timer := 0.0
+
+func _process(delta) -> void:
 	if is_game_over or is_paused:
 		return
 	
-	enemies_alive = get_tree().get_nodes_in_group("enemy").size()
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	enemies_alive = enemies.size()
 	
 	# Remove enemies stuck outside map bounds
 	for enemy in get_tree().get_nodes_in_group("enemy"):
@@ -951,7 +954,10 @@ func _process(_delta) -> void:
 		between_waves = true
 		_start_intermission()
 	
-	_update_hud()
+	_hud_timer += delta
+	if _hud_timer >= 0.1:
+		_hud_timer = 0.0
+		_update_hud()
 
 # ==================== SCORE & GAME OVER ====================
 

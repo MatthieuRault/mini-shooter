@@ -32,6 +32,11 @@ const WEAPON_LABEL := {
 	"rocket":  "ROCKET",
 }
 
+# ==================== RESOURCES ====================
+
+var grab_sound = preload("res://Sounds/Music/item-grab.ogg")
+var _player : Node = null
+
 # ==================== SETUP ====================
 
 func setup(type: String) -> void:
@@ -41,6 +46,7 @@ func _ready() -> void:
 	add_to_group("weapon_drops")
 	collision_layer = 8
 	collision_mask  = 0
+	_player = get_tree().get_first_node_in_group("player")
 
 	var rarity = WEAPON_RARITY.get(weapon_type, "common")
 	var color  = RARITY_COLOR.get(rarity, Color.WHITE)
@@ -62,8 +68,6 @@ func _ready() -> void:
 	hint.modulate = Color(1.0, 0.85, 0.3, 0.0)   # Start invisible
 	hint.add_theme_font_size_override("font_size", 8)
 	add_child(hint)
-	
-var grab_sound = preload("res://Sounds/Music/item-grab.ogg")
 
 # ==================== GAME LOOP ====================
 
@@ -80,7 +84,7 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
-	var player = get_tree().get_first_node_in_group("player")
+	var player = _player
 	if not player or not is_instance_valid(player):
 		queue_redraw()
 		return
