@@ -8,6 +8,9 @@ var map_size := Vector2(960, 540)
 
 var score        := 0
 var is_game_over := false
+var enemies_killed := 0
+var high_score     := 0
+const SAVE_PATH    := "user://save.cfg"
 
 # ==================== WAVE SYSTEM ====================
 
@@ -50,6 +53,7 @@ var boss_bar_width     := 200.0
 # ==================== PAUSE ====================
 
 var is_paused       := false
+var game_over_input_lock := true
 var pause_overlay   : ColorRect
 var pause_container : VBoxContainer
 
@@ -131,6 +135,7 @@ var icon_mine        = preload("res://Scenes/Main/HUD/Sprites/icon_mine.png")
 # ==================== INITIALIZATION ====================
 
 func _ready() -> void:
+	_load_high_score()
 	$Timer.timeout.connect(_on_timer_timeout)
 	$Timer.stop()
 	_create_obstacles()
@@ -895,31 +900,178 @@ func _process(_delta) -> void:
 
 func add_score(amount: int) -> void:
 	score += amount
+	enemies_killed += 1
+	
+# ==================== SAVE / LOAD ====================
 
-func _input(event: InputEvent) -> void:	
-	# Skip radio with Enter
-	if radio_visible and event.is_action_pressed("ui_accept"):
-		_hide_radio()
-		return
-	if is_game_over and event is InputEventKey and event.pressed:
-		get_tree().change_scene_to_file("res://Scenes/Title/title.tscn")
+func _load_high_score() -> void:
+	if OS.has_feature("web"):
+		var val = JavaScriptBridge.eval("localStorage.getItem('high_score')")
+		if val != null:
+			high_score = int(val)
+	else:
+		var cfg = ConfigFile.new()
+		if cfg.load(SAVE_PATH) == OK:
+			high_score = cfg.get_value("stats", "high_score", 0)
+
+func _save_high_score() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("localStorage.setItem('high_score', %d)" % high_score)
+	else:
+		var cfg = ConfigFile.new()
+		cfg.set_value("stats", "high_score", high_score)
+		cfg.save(SAVE_PATH)
+
+# ==================== GAME OVER SCREEN ====================
 
 func game_over() -> void:
 	is_game_over = true
 	_hide_boss_bar()
 	is_paused = false
-	score_label.visible = true
-	score_label.text = "GAME OVER!\n\nScore: %s  |  Vague: %s\n\nAppuyer sur une touche" % [score, current_wave]
 	$Timer.stop()
-	
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		enemy.queue_free()
+
+	# Update high score
+	var is_new_record = score > high_score
+	if is_new_record:
+		high_score = score
+		_save_high_score()
+
+	# Death sound
 	var audio = AudioStreamPlayer.new()
-	audio.stream = gameover_sound
+	audio.stream    = gameover_sound
 	audio.volume_db = -20
 	add_child(audio)
 	audio.play()
+
+	# Hide the old label
+	score_label.visible = false
+
+	# Full-screen dark overlay
+	var overlay = ColorRect.new()
+	overlay.color          = Color(0, 0, 0, 0)
+	overlay.anchor_right   = 1.0
+	overlay.anchor_bottom  = 1.0
+	overlay.mouse_filter   = Control.MOUSE_FILTER_IGNORE
+	$CanvasLayer.add_child(overlay)
+
+	# Fade overlay in
+	var fade = create_tween()
+	fade.tween_property(overlay, "color", Color(0, 0, 0, 0.75), 0.8)
+	await fade.finished
+	game_over_input_lock = false
+
+	# Central card
+	var card = PanelContainer.new()
+	card.anchor_left  = 0.5; card.anchor_right  = 0.5
+	card.anchor_top   = 0.5; card.anchor_bottom = 0.5
+	card.offset_left  = -160; card.offset_right  = 160
+	card.offset_top   = -140; card.offset_bottom = 140
+	card.modulate     = Color(1, 1, 1, 0)
+	var card_style = StyleBoxFlat.new()
+	card_style.bg_color = Color(0.08, 0.06, 0.06, 0.96)
+	card_style.border_color = Color(0.5, 0.12, 0.1, 0.9)
+	card_style.set_border_width_all(1)
+	card_style.set_corner_radius_all(4)
+	card_style.content_margin_left   = 24
+	card_style.content_margin_right  = 24
+	card_style.content_margin_top    = 20
+	card_style.content_margin_bottom = 20
+	card.add_theme_stylebox_override("panel", card_style)
+	$CanvasLayer.add_child(card)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	card.add_child(vbox)
+
+	# Title
+	var title = Label.new()
+	title.text = "MORT AU COMBAT"
+	title.add_theme_font_size_override("font_size", 22)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.modulate = Color(0.9, 0.25, 0.2)
+	vbox.add_child(title)
+
+	# Separator
+	var sep = ColorRect.new()
+	sep.color                = Color(0.5, 0.12, 0.1, 0.6)
+	sep.custom_minimum_size  = Vector2(0, 1)
+	vbox.add_child(sep)
+
+	# Stats grid
+	var grid = GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 20)
+	grid.add_theme_constant_override("v_separation", 6)
+	vbox.add_child(grid)
+
+	var stats := [
+		["Vague atteinte",  str(current_wave)],
+		["Ennemis tués",    str(enemies_killed)],
+		["Score",           str(score)],
+		["Meilleur score",  str(high_score)],
+	]
+	for stat in stats:
+		var lbl_key = Label.new()
+		lbl_key.text    = stat[0]
+		lbl_key.modulate = Color(0.6, 0.6, 0.6)
+		lbl_key.add_theme_font_size_override("font_size", 11)
+		grid.add_child(lbl_key)
+
+		var lbl_val = Label.new()
+		lbl_val.text    = stat[1]
+		lbl_val.modulate = Color(1, 1, 1)
+		lbl_val.add_theme_font_size_override("font_size", 11)
+		lbl_val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lbl_val.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(lbl_val)
+
+	# New record badge
+	if is_new_record and score > 0:
+		var badge = Label.new()
+		badge.text    = "★  NOUVEAU RECORD  ★"
+		badge.add_theme_font_size_override("font_size", 12)
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.modulate = Color(1.0, 0.8, 0.2)
+		vbox.add_child(badge)
+
+	# Separator
+	var sep2 = ColorRect.new()
+	sep2.color               = Color(0.5, 0.12, 0.1, 0.4)
+	sep2.custom_minimum_size = Vector2(0, 1)
+	vbox.add_child(sep2)
+
+	# Buttons
+	var btn_retry = Button.new()
+	btn_retry.text = "REJOUER"
+	btn_retry.add_theme_font_size_override("font_size", 14)
+	btn_retry.pressed.connect(func(): get_tree().change_scene_to_file("res://Scenes/main.tscn"))
+	vbox.add_child(btn_retry)
+
+	var btn_menu = Button.new()
+	btn_menu.text = "MENU PRINCIPAL"
+	btn_menu.add_theme_font_size_override("font_size", 14)
+	btn_menu.pressed.connect(func(): get_tree().change_scene_to_file("res://Scenes/Title/title.tscn"))
+	vbox.add_child(btn_menu)
+
+	var hint = Label.new()
+	hint.text     = "ou appuyer sur une touche"
+	hint.add_theme_font_size_override("font_size", 8)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.modulate = Color(1, 1, 1, 0.3)
+	vbox.add_child(hint)
+
+	# Fade card in
+	var card_fade = create_tween()
+	card_fade.tween_property(card, "modulate:a", 1.0, 0.4)
 	
-	for enemy in get_tree().get_nodes_in_group("enemy"):
-		enemy.queue_free()
+func _input(event: InputEvent) -> void:
+	# Skip radio message with Enter
+	if radio_visible and event.is_action_pressed("ui_accept"):
+		_hide_radio(); return
+	if is_game_over and event is InputEventKey and event.pressed:
+		get_tree().change_scene_to_file("res://Scenes/Title/title.tscn")
 
 # ==================== ENEMY SPAWNING ====================
 
