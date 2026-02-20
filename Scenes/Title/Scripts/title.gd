@@ -209,6 +209,15 @@ func _create_version() -> void:
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ver.offset_right = -6; ver.offset_bottom = -4
 	add_child(ver)
+	
+	var credit = Label.new()
+	credit.text = "Edited by Matthrault"
+	credit.add_theme_font_size_override("font_size", 8)
+	credit.modulate = Color(1, 1, 1, 0.25)
+	credit.anchor_bottom = 1.0
+	credit.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	credit.offset_left = 6; credit.offset_bottom = -4
+	add_child(credit)
 
 # ==================== FADE-IN ANIMATION ====================
 
