@@ -506,6 +506,45 @@ func _update_hud() -> void:
 
 func on_weapon_changed(weapon: String) -> void:
 	current_weapon_name = weapon
+	
+func on_weapon_expired(weapon: String) -> void:
+	# Find which slot this weapon was in
+	var player = get_tree().get_first_node_in_group("player")
+	var slot_idx = -1
+	if player:
+		for i in player.weapons.size():
+			if player.weapons[i] == weapon:
+				slot_idx = i
+				break
+	if slot_idx == -1: slot_idx = 0
+
+	# Flash the slot red 3 times
+	var panel : PanelContainer = inv_panels[slot_idx]
+	var style : StyleBoxFlat   = panel.get_theme_stylebox("panel")
+	var tw = create_tween()
+	for i in 3:
+		tw.tween_callback(func(): style.bg_color = Color(0.6, 0.05, 0.05, 0.85))
+		tw.tween_interval(0.12)
+		tw.tween_callback(func(): style.bg_color = Color(0, 0, 0, 0))
+		tw.tween_interval(0.12)
+
+	# Play a short alert beep
+	var audio = AudioStreamPlayer.new()
+	audio.volume_db = -10
+	add_child(audio)	
+	var gen = AudioStreamGenerator.new()
+	gen.mix_rate = 22050.0
+	gen.buffer_length = 0.15
+	audio.stream = gen
+	audio.play()
+	var pb = audio.get_stream_playback()
+	var hz   = 440.0
+	var rate = gen.mix_rate
+	for s in int(rate * 0.12):
+		var t = float(s) / rate
+		var env = 1.0 - (t / 0.12)    # Linear fade out
+		pb.push_frame(Vector2.ONE * sin(TAU * hz * t) * 0.3 * env)
+	audio.finished.connect(audio.queue_free)
 
 func on_fire_mode_changed(_mode: String) -> void:
 	pass
@@ -633,7 +672,7 @@ func _show_boss_bar() -> void:
 	boss_hp_label.text = ""
 	
 	# Boss name by wave
-	var wave_tier = current_wave / 5
+	var wave_tier = int(current_wave / 5)
 	var boss_names := [
 		"Seigneur de la Faille",
 		"Gardien des Ombres",

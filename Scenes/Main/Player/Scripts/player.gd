@@ -238,9 +238,9 @@ func _notify_weapon_change() -> void:
 func pickup_weapon(type: String) -> bool:
 	# Already carrying this weapon → refill ammo instead
 	if type in weapons:
-		var drop = DROP_AMMO.get(type, {"mag":0, "stock":10})
+		var refill = DROP_AMMO.get(type, {"mag":0, "stock":10})
 		current_stock[type] = min(
-			current_stock[type] + drop["stock"],
+			current_stock[type] + refill["stock"],
 			ammo_data[type]["max_stock"]
 		)
 		_flash(Color(0.5, 1.0, 0.5))
@@ -261,6 +261,7 @@ func pickup_weapon(type: String) -> bool:
 	_flash(Color(1.0, 1.0, 0.3))
 	return true
 
+# Q key: swap the current weapon with the nearest ground drop within range.
 func _try_swap_weapon() -> void:
 	var best_drop : Node  = null
 	var best_dist : float = 55.0
@@ -277,25 +278,48 @@ func _try_swap_weapon() -> void:
 
 	var drop_type : String = best_drop.weapon_type
 
-	# If we already carry this type just refill ammo
+	# Already carrying this type → refill ammo
 	if drop_type in weapons:
 		pickup_weapon(drop_type)
 		best_drop.queue_free()
 		return
 
-	# Drop current weapon on the ground and pick up the new one
-	_spawn_weapon_drop_at(current_weapon, global_position)
+	# Never swap out the pistol — it's the permanent fallback
+	if current_weapon == "pistol":
+		# Try to swap the last non-pistol slot instead
+		var alt_idx = -1
+		for i in range(weapons.size() - 1, -1, -1):
+			if weapons[i] != "pistol":
+				alt_idx = i
+				break
+		# No non-pistol slot available → just pick up normally if slot free
+		if alt_idx == -1:
+			pickup_weapon(drop_type)
+			best_drop.queue_free()
+			return
+		# Swap the alt slot instead
+		_spawn_weapon_drop_at(weapons[alt_idx], global_position)
+		var old = weapons[alt_idx]
+		current_mag[old] = 0; current_stock[old] = 0
+		weapons[alt_idx] = drop_type
+		var drop_ammo = DROP_AMMO.get(drop_type, {"mag":10, "stock":10})
+		current_mag[drop_type]   = drop_ammo["mag"]
+		current_stock[drop_type] = drop_ammo["stock"]
+		_notify_weapon_change()
+		_flash(Color(1.0, 0.6, 0.1))
+		best_drop.queue_free()
+		return
 
+	# Normal swap: drop current, pick up new
+	_spawn_weapon_drop_at(current_weapon, global_position)
 	var old_weapon = current_weapon
 	weapons.remove_at(weapon_index)
 	current_mag[old_weapon]   = 0
 	current_stock[old_weapon] = 0
-
 	weapons.insert(weapon_index, drop_type)
 	var drop_ammo = DROP_AMMO.get(drop_type, {"mag":10, "stock":10})
 	current_mag[drop_type]   = drop_ammo["mag"]
 	current_stock[drop_type] = drop_ammo["stock"]
-
 	current_weapon = drop_type
 	_notify_weapon_change()
 	_flash(Color(1.0, 0.6, 0.1))
@@ -319,6 +343,10 @@ func _remove_weapon(type: String) -> void:
 	weapons.remove_at(idx)
 	current_mag[type]   = 0
 	current_stock[type] = 0
+	# Notify main to flash the HUD slot
+	var main = get_tree().current_scene
+	if main.has_method("on_weapon_expired"):
+		main.on_weapon_expired(type)
 	# Fall back to pistol if the active weapon was just removed
 	if current_weapon == type:
 		weapon_index   = 0

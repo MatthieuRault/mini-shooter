@@ -37,7 +37,7 @@ func _ready() -> void:
 
 # ==================== PICKUP ====================
 
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	var player = get_tree().get_first_node_in_group("player")
 	if not player:
 		return
